@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AirFoxBT</RootNamespace>
+    <AssemblyName>AirFoxBT</AssemblyName>
+
+    <!-- Desktop & XAML features -->
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <StartupObject>AirFoxBT.Program</StartupObject>
+
+    <!-- Self-contained single-file defaults -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="assets\app.ico" />
+    <Resource Include="assets\logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="example-UX\**" />
+    <Page Remove="example-UX\**" />
+    <None Include="example-UX\**" />
+    <Compile Remove="example updater\**" />
+    <None Include="example updater\**" />
+    <Compile Remove="SpecialFeatures\**" />
+    <Page Remove="SpecialFeatures\**" />
+    <None Include="SpecialFeatures\**" />
+  </ItemGroup>
+
+</Project>

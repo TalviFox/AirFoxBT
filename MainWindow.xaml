@@ -1,0 +1,1333 @@
+<Window x:Class="AirFoxBT.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AirFoxBT"
+        xmlns:vm="clr-namespace:AirFoxBT.ViewModels"
+        xmlns:controls="clr-namespace:AirFoxBT.Controls"
+        mc:Ignorable="d"
+        Title="AirFoxBT | Bluetooth LE Gateway" 
+        Height="780" Width="1200"
+        MinHeight="580" MinWidth="940"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Icon="pack://application:,,,/AirFoxBT;component/assets/logo.png"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /> <!-- Row 0: Top InFaux Header Bar -->
+            <RowDefinition Height="*" />    <!-- Row 1: Main Content Area (Sensors / Settings) -->
+            <RowDefinition Height="Auto" /> <!-- Row 2: Bottom Status Bar -->
+        </Grid.RowDefinitions>
+
+        <!-- TOP INFAUX HEADER BAR -->
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,0,1" Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: inFaux-style Branding, Navigation Tabs & Status Badges -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- App Icon with Official Nocturnal Hunter Identity -->
+                    <Border Background="Transparent" Width="34" Height="34" Margin="0,0,12,0" VerticalAlignment="Center">
+                        <Image Source="pack://application:,,,/AirFoxBT;component/assets/logo.png" Width="34" Height="34" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" />
+                    </Border>
+
+                    <!-- Title & Version -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="AirFoxBT" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                        <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="v1.0.0" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Subtle Vertical Divider -->
+                    <Border Width="1" Height="18" Background="{DynamicResource CardBorderBrush}" Margin="12,0" VerticalAlignment="Center" />
+
+                    <!-- INFAUX NAVIGATION TABS: All Sensors | Settings -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <RadioButton x:Name="TabAllSensors" GroupName="NavTabs" Content="All Sensors" IsChecked="True" Click="TabAllSensors_Click" Style="{StaticResource FoxDenNavTab}" Margin="0,0,4,0" />
+                        <RadioButton x:Name="TabSettings" GroupName="NavTabs" Content="Settings" Click="TabSettings_Click" Style="{StaticResource FoxDenNavTab}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Right: Service Pills, Telemetry Stats & Action Button -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Service Pill: ESPHome Bluetooth Proxy (Home Assistant Native) -->
+                    <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="7,3" Margin="0,0,5,0" VerticalAlignment="Center" ToolTip="ESPHome Bluetooth Proxy server running on port 6053 for Home Assistant">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="6" Height="6" Fill="{DynamicResource EmeraldLiveBrush}" Margin="0,0,4,0" />
+                            <TextBlock Text="ESPHome" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,2,0" />
+                            <TextBlock x:Name="TxtEsphomeStatus" Text=":6053" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Service Pill: Local REST API -->
+                    <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="7,3" Margin="0,0,5,0" VerticalAlignment="Center" ToolTip="Local REST &amp; SSE telemetry server running at http://localhost:8766">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="⚡" FontSize="9" Foreground="{DynamicResource BleTextBrush}" Margin="0,0,3,0" />
+                            <TextBlock Text="REST" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BleTextBrush}" Margin="0,0,2,0" />
+                            <TextBlock Text=":8766" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Host IP Pill (Click to Copy) with Vector Monitor -->
+                    <Border x:Name="PillHostIp" Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="7,3" Margin="0,0,5,0" VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonDown="PillHostIp_MouseLeftButtonDown" ToolTip="Host IPv4 Address (Click to copy)">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Viewbox Width="12" Height="11" Margin="0,0,4,0" VerticalAlignment="Center">
+                                <Canvas Width="16" Height="16">
+                                    <Rectangle Width="14" Height="10" Canvas.Left="1" Canvas.Top="1" RadiusX="1.5" RadiusY="1.5" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.4" Fill="Transparent" />
+                                    <Line X1="8" Y1="11" X2="8" Y2="14" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.4" />
+                                    <Line X1="5" Y1="14" X2="11" Y2="14" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                </Canvas>
+                            </Viewbox>
+                            <TextBlock x:Name="TxtHostIp" Text="..." FontSize="10" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Throttle Mode Selector Pill -->
+                    <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="5,2" Margin="0,0,5,0" VerticalAlignment="Center" ToolTip="ESPHome Proxy Throttling &amp; Deduplication Mode">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Mode:" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="3,0,2,0" />
+                            <ComboBox x:Name="CmbThrottleMode" SelectionChanged="CmbThrottleMode_SelectionChanged"
+                                      Background="Transparent" BorderThickness="0" Foreground="{DynamicResource PrimaryAccentBrush}"
+                                      FontSize="10" FontWeight="Bold" Cursor="Hand" VerticalAlignment="Center">
+                                <ComboBoxItem Content="Eco" Tag="Eco" ToolTip="Eco mode (15-second deduplication)" />
+                                <ComboBoxItem Content="Balanced" Tag="Balanced" IsSelected="True" ToolTip="Balanced mode (5-second deduplication)" />
+                                <ComboBoxItem Content="Realtime" Tag="Realtime" ToolTip="Realtime mode (1-second deduplication)" />
+                                <ComboBoxItem Content="Raw" Tag="Raw" ToolTip="Raw firehose (no deduplication)" />
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Update Available Pill Button (Dynamic) -->
+                    <Border x:Name="BadgeUpdateAvailable" Visibility="Collapsed" Background="#0C1F38" BorderBrush="#0082FC" BorderThickness="1" CornerRadius="12" Padding="8,3" Margin="0,0,5,0" VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonDown="BadgeUpdateAvailable_MouseLeftButtonDown" ToolTip="An official update is available! Click to inspect.">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🚀 " FontSize="10" />
+                            <TextBlock x:Name="TxtBadgeUpdateText" Text="Update Available" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BleTextBrush}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Sensor Telemetry Summary Pill -->
+                    <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="Active BLE sensors and deduplication drop rate">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="TxtSensorsCount" Text="0 Sensors" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource PrimaryAccentBrush}" />
+                            <TextBlock x:Name="TxtFilterStats" Text=" • 0% drop" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock x:Name="TxtPacketsCount" Text="" Visibility="Collapsed" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Send to Tray Button -->
+                    <Button Style="{StaticResource FoxDenButton}" Content="Send to Tray" Click="BtnSendToTray_Click" VerticalAlignment="Center" Padding="10,4" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ROW 1: MAIN CONTENT AREA -->
+        <Grid Grid.Row="1">
+            <!-- VIEW 1: ALL SENSORS & INGESTION TERMINAL -->
+            <Grid x:Name="ViewAllSensors" Visibility="Visible">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- Row 0: Instant Search & Group Filter Sub-bar -->
+                    <RowDefinition Height="*" />    <!-- Row 1: Main Sensor Dashboard Grid -->
+                    <RowDefinition Height="Auto" /> <!-- Row 2: Log Drawer Bar -->
+                    <RowDefinition Height="160" x:Name="LogDrawerRow" /> <!-- Row 3: Rolling Terminal Drawer -->
+                </Grid.RowDefinitions>
+
+                <!-- ROW 0: SUB-TOOLBAR — INSTANT SEARCH & GROUP FILTER CHIPS -->
+                <Border Grid.Row="0" Background="{DynamicResource HeaderBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,0,1" Padding="18,7">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" /> <!-- Instant Search Box -->
+                            <ColumnDefinition Width="*" />    <!-- Group Filter Chips Panel -->
+                            <ColumnDefinition Width="Auto" /> <!-- Match counter -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left: Search Box (MAC, Name, Model) -->
+                        <Border Grid.Column="0" Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,4" Width="260" Margin="0,0,12,0" VerticalAlignment="Center">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="🔍" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBox Grid.Column="1" x:Name="TxtSearch" TextChanged="TxtSearch_TextChanged"
+                                         Background="Transparent" BorderThickness="0"
+                                         FontSize="11" FontFamily="Segoe UI, Consolas"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" x:Name="TxtSearchPlaceholder" Text="Search MAC, name, model..."
+                                           FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                           VerticalAlignment="Center" IsHitTestVisible="False" Margin="2,0,0,0" />
+                                <Button Grid.Column="2" x:Name="BtnClearSearch" Click="BtnClearSearch_Click"
+                                        Content="✕" Style="{StaticResource FoxDenIconButton}"
+                                        FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
+                                        Visibility="Collapsed" Padding="3,0" VerticalAlignment="Center" ToolTip="Clear search" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Center: Scrollable Group Filter Chips -->
+                        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center">
+                            <StackPanel x:Name="GroupChipsPanel" Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Populated dynamically: All, Outside, Upstairs, Downstairs, PC, Doors, Ignored -->
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Right: Results Count -->
+                        <TextBlock Grid.Column="2" x:Name="TxtResultsCount" Text="" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                    </Grid>
+                </Border>
+
+                <!-- ROW 1: SENSORS CONTENT GRID (CENTERED INFAUX CARD DESIGN) -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="18">
+                    <ItemsControl x:Name="SensorCardsList" HorizontalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <!-- INFAUX HARDWARE MONITOR CARD -->
+                                <Border Width="355" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Margin="0,0,16,16" Padding="14,12">
+                                    <Border.ContextMenu>
+                                        <ContextMenu Background="#0B111C" BorderBrush="{DynamicResource ControlBorderBrush}">
+                                            <MenuItem Header="Rename Sensor..." Command="{Binding BeginEditCommand}">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="✏️" FontSize="11" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Copy MAC Address" Command="{Binding CopyMacCommand}">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="📋" FontSize="11" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Toggle Relay / Ignore" Command="{Binding ToggleRelayCommand}">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="🔄" FontSize="11" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <Separator Background="{DynamicResource CardBorderBrush}" />
+                                            <MenuItem Header="Delete Sensor" Command="{Binding DeleteSensorCommand}" Foreground="#F87171">
+                                                <MenuItem.Icon>
+                                                    <TextBlock Text="🗑️" FontSize="11" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                             <RowDefinition Height="Auto" /> <!-- Row 0: Card Header (Title & MAC / Edit) -->
+                                            <RowDefinition Height="Auto" /> <!-- Row 1: Multi-Column Stats -->
+                                            <RowDefinition Height="Auto" /> <!-- Row 2: Thin Progress Bar -->
+                                            <RowDefinition Height="Auto" /> <!-- Row 3: Dedicated Footer: Timestamp & Signal -->
+                                            <RowDefinition Height="Auto" /> <!-- Row 4: Inline Rename Drawer (if active) -->
+                                        </Grid.RowDefinitions>
+
+                                        <!-- ROW 0: CARD HEADER -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />     <!-- Title Marquee + Edit -->
+                                                <ColumnDefinition Width="Auto" />  <!-- Submodel / Display Badge -->
+                                                <ColumnDefinition Width="Auto" />  <!-- Short MAC (click to copy) -->
+                                                <ColumnDefinition Width="Auto" />  <!-- Far Right: HA Relayed Badge -->
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Left: Ping-Pong Marquee Title + Pinned Edit Button + Delete Button -->
+                                            <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Ping-Pong Marquee for Long Titles -->
+                                                <controls:MarqueeTextBlock Grid.Column="0"
+                                                                           Text="{Binding DisplayName, Mode=OneWay}"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                           VerticalAlignment="Center" />
+
+                                                <!-- Edit Button (Always pinned and visible) -->
+                                                <Button Grid.Column="1" Command="{Binding BeginEditCommand}"
+                                                        Style="{StaticResource FoxDenIconButton}"
+                                                        Margin="6,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip="Rename Sensor &amp; Configure Model">
+                                                    <Viewbox Width="12" Height="12">
+                                                        <Canvas Width="16" Height="16">
+                                                            <Path Data="M 12.146,0.854 A 0.5,0.5 0 0,1 12.854,0.854 L 15.146,3.146 A 0.5,0.5 0 0,1 15.146,3.854 L 5.646,13.354 A 0.5,0.5 0 0,1 5.478,13.464 L 1.478,14.964 A 0.5,0.5 0 0,1 0.86,14.346 L 2.36,10.346 A 0.5,0.5 0 0,1 2.47,10.178 L 11.97,0.678 A 0.5,0.5 0 0,1 12.146,0.854 Z M 11.207,2.5 L 3.5,10.207 L 3.5,11 L 4.293,11 L 12,3.293 L 11.207,2.5 Z"
+                                                                  Fill="{DynamicResource TextSecondaryBrush}" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </Button>
+
+                                                <!-- Delete Sensor Button -->
+                                                <Button Grid.Column="2" Command="{Binding DeleteSensorCommand}"
+                                                        Style="{StaticResource FoxDenIconButton}"
+                                                        Margin="4,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip="Delete Sensor">
+                                                    <Viewbox Width="11" Height="11">
+                                                        <Canvas Width="16" Height="16">
+                                                            <Path Data="M 2,4 L 14,4 M 6,4 L 6,2 A 1,1 0 0,1 7,1 L 9,1 A 1,1 0 0,1 10,2 L 10,4 M 3.5,4 L 4.2,14 A 1.5,1.5 0 0,0 5.7,15.5 L 10.3,15.5 A 1.5,1.5 0 0,0 11.8,14 L 12.5,4"
+                                                                  Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </Button>
+                                            </Grid>
+
+                                            <!-- Middle: Submodel / Display Badge (E-INK / LCD / PUCK) -->
+                                            <Border Grid.Column="1" Margin="0,0,6,0" Padding="5,2" CornerRadius="3" VerticalAlignment="Center"
+                                                    Background="{Binding DisplayTypeBackgroundBrush}"
+                                                    BorderBrush="{Binding DisplayTypeBorderBrush}"
+                                                    BorderThickness="1"
+                                                    ToolTip="{Binding DisplayTypeTooltip}">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasDisplayTypeBadge}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding DisplayTypeBadgeText}"
+                                                           FontSize="9" FontWeight="Bold"
+                                                           Foreground="{Binding DisplayTypeForegroundBrush}"
+                                                           VerticalAlignment="Center" />
+                                            </Border>
+
+                                            <!-- Middle/Right: Last 6 of MAC with Click to Copy & Tooltip -->
+                                            <Button Grid.Column="2" Command="{Binding CopyMacCommand}"
+                                                    Style="{StaticResource FoxDenIconButton}"
+                                                    Padding="4,2" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                    ToolTip="{Binding MacTooltipText}">
+                                                <TextBlock Text="{Binding ShortMacAddress}" FontSize="10" FontFamily="Consolas" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                            </Button>
+
+                                            <!-- Far Right: HA Relayed / Ignored Toggle Button Badge -->
+                                            <Button Grid.Column="3" Command="{Binding ToggleRelayCommand}"
+                                                    Style="{StaticResource FoxDenBadgeButton}"
+                                                    Background="{Binding RelayStatusBackgroundBrush}"
+                                                    BorderBrush="{Binding RelayStatusBorderBrush}"
+                                                    VerticalAlignment="Center"
+                                                    ToolTip="{Binding RelayStatusTooltip}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Ellipse Width="5" Height="5" Fill="{Binding RelayStatusDotBrush}" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding RelayStatusBadgeText}" FontSize="9" FontWeight="SemiBold"
+                                                               Foreground="{Binding RelayStatusForegroundBrush}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- ROW 1: MULTI-COLUMN TELEMETRY GRID -->
+                                        <!-- Mode A: Environmental (Temperature & Humidity) -->
+                                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEnvironmentalMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.1*" /> <!-- Temp -->
+                                                <ColumnDefinition Width="1.0*" /> <!-- Humidity -->
+                                                <ColumnDefinition Width="1.1*" /> <!-- Battery -->
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Column 1: TEMPERATURE -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="TEMPERATURE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding TemperatureDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{Binding TemperatureBrush}" Margin="0,2,0,0" />
+                                                <TextBlock Text="{Binding TemperatureAltDisplay, Mode=OneWay}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,1,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 2: HUMIDITY -->
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="HUMIDITY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding HumidityDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,2,0,0" />
+                                                <TextBlock Text="RH" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,1,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 3: BATTERY -->
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="BATTERY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                                                    <!-- Crisp Vector Battery Icon -->
+                                                    <Grid Width="20" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="{Binding BatteryHealthNote}">
+                                                        <!-- Outer Shell -->
+                                                        <Rectangle Width="16.5" Height="11" RadiusX="2" RadiusY="2" HorizontalAlignment="Left"
+                                                                   Stroke="{Binding BatteryBrush}" StrokeThickness="1.4" Fill="Transparent" SnapsToDevicePixels="True" />
+                                                        <!-- Positive Terminal Tip -->
+                                                        <Border Width="2" Height="5" CornerRadius="0,1,1,0" HorizontalAlignment="Right"
+                                                                Background="{Binding BatteryBrush}" VerticalAlignment="Center" SnapsToDevicePixels="True" />
+                                                        <!-- Dynamic Fill Bar -->
+                                                        <Border HorizontalAlignment="Left" Margin="2,0,0,0" Height="7" CornerRadius="1"
+                                                                Background="{Binding BatteryBrush}" SnapsToDevicePixels="True"
+                                                                Width="{Binding BatteryFillWidth, Mode=OneWay}" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding BatteryDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding BatteryHealthNote, Mode=OneWay}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,1,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Mode B: Contact Sensor (Open / Closed) -->
+                                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsContactMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.1*" /> <!-- Contact State -->
+                                                <ColumnDefinition Width="1.0*" /> <!-- Attributes -->
+                                                <ColumnDefinition Width="1.1*" /> <!-- Battery -->
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Column 1: STATE BADGE -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="STATE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <Border CornerRadius="4" Padding="7,2" Margin="0,3,0,0" HorizontalAlignment="Left"
+                                                        Background="{Binding ContactStateBackgroundBrush}" BorderBrush="{Binding ContactStateBorderBrush}" BorderThickness="1">
+                                                    <TextBlock Text="{Binding ContactStateDisplay, Mode=OneWay}" FontSize="14" FontWeight="Bold" Foreground="{Binding ContactStateBrush}" />
+                                                </Border>
+                                                <TextBlock Text="Door / Window" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 2: TELEMETRY / ATTRIBUTES -->
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="ATTRIBUTES" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding ContactDetailsDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="Telemetry" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 3: BATTERY -->
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="BATTERY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                                                    <Grid Width="20" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="{Binding BatteryHealthNote}">
+                                                        <Rectangle Width="16.5" Height="11" RadiusX="2" RadiusY="2" HorizontalAlignment="Left"
+                                                                   Stroke="{Binding BatteryBrush}" StrokeThickness="1.4" Fill="Transparent" SnapsToDevicePixels="True" />
+                                                        <Border Width="2" Height="5" CornerRadius="0,1,1,0" HorizontalAlignment="Right"
+                                                                Background="{Binding BatteryBrush}" VerticalAlignment="Center" SnapsToDevicePixels="True" />
+                                                        <Border HorizontalAlignment="Left" Margin="2,0,0,0" Height="7" CornerRadius="1"
+                                                                Background="{Binding BatteryBrush}" SnapsToDevicePixels="True"
+                                                                Width="{Binding BatteryFillWidth, Mode=OneWay}" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding BatteryDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding BatteryHealthNote, Mode=OneWay}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,1,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Mode C: Button Remote (Shelly BLU Button) -->
+                                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsButtonMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.1*" /> <!-- Event Badge -->
+                                                <ColumnDefinition Width="1.0*" /> <!-- Details -->
+                                                <ColumnDefinition Width="1.1*" /> <!-- Battery -->
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Column 1: EVENT BADGE -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="LAST EVENT" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <Border CornerRadius="4" Padding="7,2" Margin="0,3,0,0" HorizontalAlignment="Left"
+                                                        Background="{Binding ButtonStateBackgroundBrush}" BorderBrush="{Binding ButtonStateBorderBrush}" BorderThickness="1">
+                                                    <TextBlock Text="{Binding ButtonEventDisplay, Mode=OneWay}" FontSize="12" FontWeight="Bold" Foreground="{Binding ButtonStateBrush}" />
+                                                </Border>
+                                                <TextBlock Text="Action Trigger" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 2: DETAILS -->
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="DEVICE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding ButtonDetailsDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="Remote Clicker" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 3: BATTERY -->
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="BATTERY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                                                    <Grid Width="20" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="{Binding BatteryHealthNote}">
+                                                        <Rectangle Width="16.5" Height="11" RadiusX="2" RadiusY="2" HorizontalAlignment="Left"
+                                                                   Stroke="{Binding BatteryBrush}" StrokeThickness="1.4" Fill="Transparent" SnapsToDevicePixels="True" />
+                                                        <Border Width="2" Height="5" CornerRadius="0,1,1,0" HorizontalAlignment="Right"
+                                                                Background="{Binding BatteryBrush}" VerticalAlignment="Center" SnapsToDevicePixels="True" />
+                                                        <Border HorizontalAlignment="Left" Margin="2,0,0,0" Height="7" CornerRadius="1"
+                                                                Background="{Binding BatteryBrush}" SnapsToDevicePixels="True"
+                                                                Width="{Binding BatteryFillWidth, Mode=OneWay}" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding BatteryDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding BatteryHealthNote, Mode=OneWay}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,1,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Mode D: Motion Sensor (Shelly BLU Motion) -->
+                                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMotionMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.1*" /> <!-- Motion State -->
+                                                <ColumnDefinition Width="1.0*" /> <!-- Attributes (Lux) -->
+                                                <ColumnDefinition Width="1.1*" /> <!-- Battery -->
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Column 1: MOTION BADGE -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="PIR STATE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <Border CornerRadius="4" Padding="7,2" Margin="0,3,0,0" HorizontalAlignment="Left"
+                                                        Background="{Binding MotionStateBackgroundBrush}" BorderBrush="{Binding MotionStateBorderBrush}" BorderThickness="1">
+                                                    <TextBlock Text="{Binding MotionStateDisplay, Mode=OneWay}" FontSize="14" FontWeight="Bold" Foreground="{Binding MotionStateBrush}" />
+                                                </Border>
+                                                <TextBlock Text="Occupancy" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 2: ILLUMINANCE / ATTRIBUTES -->
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="ATTRIBUTES" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding MotionDetailsDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="Ambient Light" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 3: BATTERY -->
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="BATTERY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                                                    <Grid Width="20" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="{Binding BatteryHealthNote}">
+                                                        <Rectangle Width="16.5" Height="11" RadiusX="2" RadiusY="2" HorizontalAlignment="Left"
+                                                                   Stroke="{Binding BatteryBrush}" StrokeThickness="1.4" Fill="Transparent" SnapsToDevicePixels="True" />
+                                                        <Border Width="2" Height="5" CornerRadius="0,1,1,0" HorizontalAlignment="Right"
+                                                                Background="{Binding BatteryBrush}" VerticalAlignment="Center" SnapsToDevicePixels="True" />
+                                                        <Border HorizontalAlignment="Left" Margin="2,0,0,0" Height="7" CornerRadius="1"
+                                                                Background="{Binding BatteryBrush}" SnapsToDevicePixels="True"
+                                                                Width="{Binding BatteryFillWidth, Mode=OneWay}" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding BatteryDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding BatteryHealthNote, Mode=OneWay}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,1,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Mode E: Encrypted Relay (Shelly BLU Encrypted) -->
+                                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEncryptedMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.1*" /> <!-- Encrypted Badge -->
+                                                <ColumnDefinition Width="1.0*" /> <!-- Decryption Info -->
+                                                <ColumnDefinition Width="1.1*" /> <!-- Battery / Status -->
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Column 1: ENCRYPTED BADGE -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="SECURITY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <Border CornerRadius="4" Padding="7,2" Margin="0,3,0,0" HorizontalAlignment="Left"
+                                                        Background="{Binding EncryptedStateBackgroundBrush}" BorderBrush="{Binding EncryptedStateBorderBrush}" BorderThickness="1">
+                                                    <TextBlock Text="{Binding EncryptedStateDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold" Foreground="{Binding EncryptedStateBrush}" />
+                                                </Border>
+                                                <TextBlock Text="AES-CCM Beacon" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 2: STATUS -->
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="RELAY STATUS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding EncryptedDetailsDisplay, Mode=OneWay}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="ESPHome Proxy :6053" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 3: BATTERY -->
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="BATTERY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                                                    <Grid Width="20" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="{Binding BatteryHealthNote}">
+                                                        <Rectangle Width="16.5" Height="11" RadiusX="2" RadiusY="2" HorizontalAlignment="Left"
+                                                                   Stroke="{Binding BatteryBrush}" StrokeThickness="1.4" Fill="Transparent" SnapsToDevicePixels="True" />
+                                                        <Border Width="2" Height="5" CornerRadius="0,1,1,0" HorizontalAlignment="Right"
+                                                                Background="{Binding BatteryBrush}" VerticalAlignment="Center" SnapsToDevicePixels="True" />
+                                                        <Border HorizontalAlignment="Left" Margin="2,0,0,0" Height="7" CornerRadius="1"
+                                                                Background="{Binding BatteryBrush}" SnapsToDevicePixels="True"
+                                                                Width="{Binding BatteryFillWidth, Mode=OneWay}" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding BatteryDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock Text="Key Bound in HA" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,1,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Mode F: Pass-Through BLE Relay -->
+                                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPassThroughMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="1.1*" /> <!-- Relayed Badge -->
+                                                <ColumnDefinition Width="1.0*" /> <!-- Pass-Through Details -->
+                                                <ColumnDefinition Width="1.1*" /> <!-- Battery / Signal -->
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Column 1: PASS-THROUGH BADGE -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="ROUTING" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <Border CornerRadius="4" Padding="7,2" Margin="0,3,0,0" HorizontalAlignment="Left"
+                                                        Background="{Binding PassThroughStateBackgroundBrush}" BorderBrush="{Binding PassThroughStateBorderBrush}" BorderThickness="1">
+                                                    <TextBlock Text="{Binding PassThroughStateDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold" Foreground="{Binding PassThroughStateBrush}" />
+                                                </Border>
+                                                <TextBlock Text="Active BLE Proxy" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 2: DETAILS -->
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="STREAM" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding PassThroughDetailsDisplay, Mode=OneWay}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="ESPHome Port 6053" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Column 3: BATTERY -->
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="BATTERY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                                                    <Grid Width="20" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="{Binding BatteryHealthNote}">
+                                                        <Rectangle Width="16.5" Height="11" RadiusX="2" RadiusY="2" HorizontalAlignment="Left"
+                                                                   Stroke="{Binding BatteryBrush}" StrokeThickness="1.4" Fill="Transparent" SnapsToDevicePixels="True" />
+                                                        <Border Width="2" Height="5" CornerRadius="0,1,1,0" HorizontalAlignment="Right"
+                                                                Background="{Binding BatteryBrush}" VerticalAlignment="Center" SnapsToDevicePixels="True" />
+                                                        <Border HorizontalAlignment="Left" Margin="2,0,0,0" Height="7" CornerRadius="1"
+                                                                Background="{Binding BatteryBrush}" SnapsToDevicePixels="True"
+                                                                Width="{Binding BatteryFillWidth, Mode=OneWay}" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding BatteryDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding BatteryHealthNote, Mode=OneWay}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,1,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- ROW 2: 2PX SLEEK INDICATOR METER (FoxDen Brand) -->
+                                        <!-- Mode A: Humidity Progress Meter -->
+                                        <ProgressBar Grid.Row="2" Value="{Binding HumidityProgress, Mode=OneWay}" Minimum="0" Maximum="100" Margin="0,2,0,0">
+                                            <ProgressBar.Style>
+                                                <Style TargetType="ProgressBar" BasedOn="{StaticResource FoxDenProgressMeter}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEnvironmentalMode}" Value="False">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ProgressBar.Style>
+                                        </ProgressBar>
+
+                                        <!-- Modes B - F: Sleek Dynamic Accent Line -->
+                                        <Rectangle Grid.Row="2" Height="2" Fill="{Binding StateIndicatorBrush}" Margin="0,2,0,0" RadiusX="1" RadiusY="1">
+                                            <Rectangle.Style>
+                                                <Style TargetType="Rectangle">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEnvironmentalMode}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Rectangle.Style>
+                                        </Rectangle>
+
+                                        <!-- ROW 3: DEDICATED FOOTER -->
+                                        <Grid Grid.Row="3" Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Left: Last Updated Timestamp + Protocol Version -->
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="10" Height="10" Margin="0,0,5,0" VerticalAlignment="Center">
+                                                    <Canvas Width="16" Height="16">
+                                                        <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1" Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.4" />
+                                                        <Polyline Points="8,4 8,8 11,8" Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <TextBlock Text="{Binding FooterTimestampAndProtocolDisplay, Mode=OneWay}" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                                            </StackPanel>
+
+                                            <!-- Right: Vector Signal Bars & RSSI (Bigger, sleek, not obnoxious) -->
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding SignalQuality}">
+                                                <Grid Width="17" Height="13" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                    <!-- Bar 1 (Height 4) -->
+                                                    <Rectangle Width="2.5" Height="4" RadiusX="1" RadiusY="1" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                                                               Fill="{Binding SignalBar1Brush}" />
+                                                    <!-- Bar 2 (Height 7) -->
+                                                    <Rectangle Width="2.5" Height="7" RadiusX="1" RadiusY="1" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="4.5,0,0,0"
+                                                               Fill="{Binding SignalBar2Brush}" />
+                                                    <!-- Bar 3 (Height 10) -->
+                                                    <Rectangle Width="2.5" Height="10" RadiusX="1" RadiusY="1" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="9.5,0,0,0"
+                                                               Fill="{Binding SignalBar3Brush}" />
+                                                    <!-- Bar 4 (Height 13) -->
+                                                    <Rectangle Width="2.5" Height="13" RadiusX="1" RadiusY="1" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14.5,0,0,0"
+                                                               Fill="{Binding SignalBar4Brush}" />
+                                                </Grid>
+                                                <TextBlock Text="{Binding RssiDisplay, Mode=OneWay}" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- ROW 4: INLINE RENAME & SUBMODEL DRAWER -->
+                                        <Border Grid.Row="4" Margin="0,8,0,0" Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,6">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel>
+                                                <!-- Top: Name Input + Save / Cancel / Delete -->
+                                                <Grid Margin="0,0,0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Text="{Binding EditNameText, UpdateSourceTrigger=PropertyChanged}" Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BleTextBrush}" BorderThickness="1" Padding="4,2" FontSize="11" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="1" Command="{Binding SaveEditCommand}" Content="Save" Background="#0D2818" Foreground="{DynamicResource EmeraldLiveBrush}" BorderBrush="#1B4D2E" BorderThickness="1" Padding="8,2" Margin="4,0,0,0" FontSize="10" FontWeight="Bold" />
+                                                    <Button Grid.Column="2" Command="{Binding CancelEditCommand}" Content="Cancel" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource TextSecondaryBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="8,2" Margin="4,0,0,0" FontSize="10" />
+                                                    <Button Grid.Column="3" Command="{Binding DeleteSensorCommand}" Content="Delete" Background="#3B1114" Foreground="#F87171" BorderBrush="#7F1D1D" BorderThickness="1" Padding="8,2" Margin="4,0,0,0" FontSize="10" ToolTip="Delete this sensor from cache and live view" />
+                                                </Grid>
+                                                <!-- Middle: Group / Room Input -->
+                                                <Grid Margin="0,0,0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Group / Room:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <TextBox Grid.Column="1" Text="{Binding EditGroupName, UpdateSourceTrigger=PropertyChanged}"
+                                                             Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                             BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="4,2" FontSize="10" VerticalAlignment="Center"
+                                                             ToolTip="Zone/Room (e.g. Outside, Upstairs, Downstairs, PC, Doors)" />
+                                                </Grid>
+                                                <!-- Bottom: Display / Hardware Submodel Selector -->
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="Display:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                    <Button Command="{Binding SetDisplayTypeCommand}" CommandParameter="Auto" Content="Auto"
+                                                            Style="{StaticResource FoxDenButton}" Padding="6,2" Margin="0,0,4,0" FontSize="9" ToolTip="Auto-detect from BLE broadcast / GATT" />
+                                                    <Button Command="{Binding SetDisplayTypeCommand}" CommandParameter="E-Ink" Content="E-Ink"
+                                                            Style="{StaticResource FoxDenButton}" Padding="6,2" Margin="0,0,4,0" FontSize="9" Foreground="#38BDF8" ToolTip="Force E-Paper Display" />
+                                                    <Button Command="{Binding SetDisplayTypeCommand}" CommandParameter="LCD" Content="LCD"
+                                                            Style="{StaticResource FoxDenButton}" Padding="6,2" Margin="0,0,4,0" FontSize="9" Foreground="#A5B4FC" ToolTip="Force Segment LCD Display" />
+                                                    <Button Command="{Binding SetDisplayTypeCommand}" CommandParameter="Puck" Content="Puck"
+                                                            Style="{StaticResource FoxDenButton}" Padding="6,2" Margin="0,0,4,0" FontSize="9" Foreground="#94A3B8" ToolTip="Force Screenless Sensor Puck" />
+                                                    <TextBlock Text="{Binding EditDisplayType}" FontSize="9" FontFamily="Consolas" Foreground="{DynamicResource BleTextBrush}" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- DRAWER SPLITTER / CONTROL BAR -->
+                <Border Grid.Row="2" Background="{DynamicResource HeaderBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,1,0,0" Padding="14,6">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="BtnToggleDrawer" Content="▼" Click="BtnToggleDrawer_Click" Style="{StaticResource FoxDenButton}" Padding="6,2" FontSize="9" Margin="0,0,8,0" ToolTip="Toggle Ingestion Log" />
+                            <TextBlock Text="Ingestion Stream" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="• raw packets" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <CheckBox x:Name="ChkAutoScroll" Content="Auto-scroll" IsChecked="True" Click="ChkAutoScroll_Click" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <Button Style="{StaticResource FoxDenButton}" Content="Clear Log" Click="BtnClearLog_Click" Padding="8,3" FontSize="10" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- LIVE ROLLING LOG DRAWER (NON-VIRTUALIZED PIXEL SCROLLING FOR BULLETPROOF AUTO-SCROLL) -->
+                <Border Grid.Row="3" Background="#05070B">
+                    <ListBox x:Name="LstLogs" Background="Transparent" BorderThickness="0" FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" 
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.CanContentScroll="False"
+                             ScrollViewer.ScrollChanged="LstLogs_ScrollChanged"
+                             VirtualizingPanel.IsVirtualizing="False">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="8,2" />
+                                <Setter Property="Margin" Value="0" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter />
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Border>
+            </Grid>
+
+            <!-- VIEW 2: SETTINGS & CRYPTOGRAPHIC INTEGRITY / UPDATES -->
+            <ScrollViewer x:Name="ViewSettings" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="28,20">
+                <StackPanel MaxWidth="860" HorizontalAlignment="Center">
+                    <!-- SECTION 1: NETWORK & TELEMETRY ENDPOINTS -->
+                    <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="Network &amp; Telemetry Endpoints" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,14" />
+
+                            <!-- Row: Gateway / Device Name -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Gateway Device Name" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Custom device name broadcast to Home Assistant and mDNS (e.g. Server Rack, Living Room)." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,3" Margin="0,0,8,0">
+                                        <TextBox x:Name="TxtDeviceName" TextChanged="TxtDeviceName_TextChanged"
+                                                 Width="240" Height="22"
+                                                 FontSize="11" FontFamily="Consolas"
+                                                 Foreground="{DynamicResource TextSecondaryBrush}"
+                                                 Background="Transparent" BorderThickness="0"
+                                                 VerticalContentAlignment="Center" />
+                                    </Border>
+                                    <Button x:Name="BtnResetDeviceName" Content="↺ Reset" Click="BtnResetDeviceName_Click" Style="{StaticResource FoxDenButton}" Padding="10,3" FontSize="10" ToolTip="Reset to Windows computer name" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row: Host IP with Dropdown & Refresh -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Host IPv4 Address" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Select network interface for mDNS discovery and local services." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                        <ComboBox x:Name="CmbHostIp" SelectionChanged="CmbHostIp_SelectionChanged"
+                                                  MinWidth="240" Height="24"
+                                                  FontSize="11" FontFamily="Consolas"
+                                                  Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    </Border>
+                                    <Button x:Name="BtnRefreshNics" Content="🔄 Refresh" Click="BtnRefreshNics_Click" Style="{StaticResource FoxDenButton}" Padding="10,3" FontSize="10" Margin="0,0,6,0" ToolTip="Rescan network adapters and refresh IP list" />
+                                    <Button x:Name="BtnCopyHostIp" Content="📋 Copy IP" Click="BtnCopyHostIp_Click" Style="{StaticResource FoxDenButton}" Padding="10,3" FontSize="10" ToolTip="Copy selected IP to clipboard" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row: REST Port & ESPHome Port -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="API Server Port" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Localhost port for REST endpoints and Server-Sent Events (default: 8766)." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12,4" VerticalAlignment="Center">
+                                    <TextBlock Text="8766" FontSize="11" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource BleTextBrush}" />
+                                </Border>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row: ESPHome Native API Port -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="ESPHome Native Proxy Port" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="TCP port for Home Assistant Bluetooth Proxy native protocol (default: 6053)." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12,4" VerticalAlignment="Center">
+                                    <TextBlock Text="6053" FontSize="11" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource EmeraldLiveBrush}" />
+                                </Border>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row: Windows Firewall & Inbound Access (For Non-Admin Server Accounts) -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Windows Firewall &amp; Inbound Access" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <Border x:Name="BadgeFirewallStatus" Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" Cursor="Hand" MouseLeftButtonDown="BadgeFirewallStatus_Click" ToolTip="Click to re-check Windows Firewall rule">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Ellipse x:Name="DotFirewallStatus" Width="6" Height="6" Fill="{DynamicResource EmeraldLiveBrush}" Margin="0,0,5,0" />
+                                                <TextBlock x:Name="TxtFirewallStatus" Text="Checking..." FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="Required for non-admin server accounts to allow incoming Home Assistant (6053) &amp; REST (8766) traffic." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="BtnAddFirewall" Content="🛡️ Configure (Admin)" Click="BtnAddFirewall_Click" Style="{StaticResource FoxDenButton}" Padding="10,3" FontSize="10" Margin="0,0,6,0" ToolTip="Prompts for Administrator UAC to add inbound firewall rule for this server" />
+                                    <Button x:Name="BtnCopyFirewallCmd" Content="📋 Copy Script" Click="BtnCopyFirewallCmd_Click" Style="{StaticResource FoxDenButton}" Padding="10,3" FontSize="10" ToolTip="Copies elevated PowerShell command to clipboard for a server administrator" />
+                                </StackPanel>
+                            </Grid>
+
+
+                            <!-- Row: Start with Windows -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Start with Windows" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Automatically launch AirFoxBT in the system tray when logging into Windows." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <CheckBox Grid.Column="1" x:Name="ToggleStartWithWindows" Click="ToggleStartWithWindows_Click" Style="{StaticResource FoxDenToggleSwitch}" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- SECTION 2: SENSOR DATA & STORAGE MANAGEMENT -->
+                    <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="Sensor Data &amp; Storage Management" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,14" />
+
+                            <!-- Row: Export & Import Sensor Data -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Export &amp; Backup Sensor Data" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Save or restore a JSON backup of your configured sensors, friendly names, room zones, and hardware settings." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="BtnExportSensors" Content="💾 Export Sensors" Click="BtnExportSensors_Click" Style="{StaticResource FoxDenButton}" Padding="12,5" FontSize="10" Margin="0,0,8,0" ToolTip="Export all configured sensors to a JSON backup file" />
+                                    <Button x:Name="BtnImportSensors" Content="📂 Import Sensors" Click="BtnImportSensors_Click" Style="{StaticResource FoxDenButton}" Padding="12,5" FontSize="10" ToolTip="Import sensor configurations from a JSON backup file" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row: Delete All Sensors -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Delete All Sensors" FontSize="12" FontWeight="SemiBold" Foreground="#F87171" />
+                                    <TextBlock Text="Wipe all cached sensors and stored names from disk and live view. Newly discovered sensors will appear as fresh unconfigured devices." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1" x:Name="BtnDeleteAllSensors" Content="🗑️ Delete All Sensors" Click="BtnDeleteAllSensors_Click" Background="#3B1114" BorderBrush="#7F1D1D" Foreground="#F87171" Style="{StaticResource FoxDenButton}" Padding="14,5" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" ToolTip="Permanently wipe all sensor records from memory and sensors.json" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- SECTION 3: BATTERY ALERT NOTIFICATIONS & DEBOUNCE MANAGER -->
+                    <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,20">
+                        <StackPanel>
+                            <!-- Header Row with Active Preset Pill Badge -->
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Battery Alert Notifications &amp; Debounce Manager" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Windows Action Center toasts for depleted sensors with multi-stage debounce, hysteresis, and cold-voltage filtering." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#0A223B" BorderBrush="#1D4ED8" BorderThickness="1" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="🔋 " FontSize="10" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="TxtBatteryAlertBadge" Text="≤ 15% (Balanced)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BleTextBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- Row 1: Alert Profile Preset Selector -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Alert Profile Preset" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Choose a recommended profile or switch to Custom to fine-tune individual debounce parameters." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <ComboBox x:Name="CmbSettingsBatteryPreset" SelectionChanged="CmbSettingsBatteryPreset_SelectionChanged"
+                                              MinWidth="230" Height="24"
+                                              FontSize="11" FontFamily="Consolas"
+                                              Foreground="{DynamicResource TextSecondaryBrush}">
+                                        <ComboBoxItem Content="≤ 15% Balanced (Recommended)" Tag="Balanced" ToolTip="Alert at 15% battery, max once per 24h, 2-packet debounce (Recommended)" />
+                                        <ComboBoxItem Content="≤ 10% Critical" Tag="Critical" ToolTip="Alert at 10% battery, max once per 24h" />
+                                        <ComboBoxItem Content="≤ 20% Early Warning" Tag="Early" ToolTip="Alert at 20% battery, max once per 24h" />
+                                        <ComboBoxItem Content="≤ 5% Urgent Only" Tag="Urgent" ToolTip="Alert at 5% battery, max once per 24h" />
+                                        <ComboBoxItem Content="Single Shot (15% once)" Tag="SingleShot" ToolTip="Single alert when crossing 15%, no recurring reminders" />
+                                        <ComboBoxItem Content="Custom Parameters" Tag="Custom" ToolTip="User-specified threshold and debounce rules" />
+                                        <ComboBoxItem Content="Disabled (Off)" Tag="Disabled" ToolTip="Disable desktop battery notifications entirely" />
+                                    </ComboBox>
+                                </Border>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row 2: Indication Level (Threshold %) -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Indication Level (Low Battery Threshold)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Battery percentage at or below which AirFoxBT triggers desktop notifications." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <ComboBox x:Name="CmbSettingsBatteryThreshold" SelectionChanged="CmbSettingsBatteryThreshold_SelectionChanged"
+                                              MinWidth="230" Height="24"
+                                              FontSize="11" FontFamily="Consolas"
+                                              Foreground="{DynamicResource TextSecondaryBrush}">
+                                        <ComboBoxItem Content="5% - Urgent (Depleted)" Tag="5" />
+                                        <ComboBoxItem Content="10% - Critical Level" Tag="10" />
+                                        <ComboBoxItem Content="15% - Recommended (Coin Cell)" Tag="15" />
+                                        <ComboBoxItem Content="20% - Early Notice" Tag="20" />
+                                        <ComboBoxItem Content="25% - Advance Warning" Tag="25" />
+                                    </ComboBox>
+                                </Border>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row 3: Debounce & Cooldown Frequency -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Debounce &amp; Reminder Interval" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Cooldown between reminders while sensor remains low. Prevents repetitive toast spam." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <ComboBox x:Name="CmbSettingsBatteryCooldown" SelectionChanged="CmbSettingsBatteryCooldown_SelectionChanged"
+                                              MinWidth="230" Height="24"
+                                              FontSize="11" FontFamily="Consolas"
+                                              Foreground="{DynamicResource TextSecondaryBrush}">
+                                        <ComboBoxItem Content="Once per 24 Hours (Recommended)" Tag="24" />
+                                        <ComboBoxItem Content="Once per 12 Hours" Tag="12" />
+                                        <ComboBoxItem Content="Once per 48 Hours" Tag="48" />
+                                        <ComboBoxItem Content="Single Shot (No recurring toasts)" Tag="8760" />
+                                    </ComboBox>
+                                </Border>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row 4: Packet Noise Filter (Debounce Strictness) -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Packet Noise Filter (Debounce Strictness)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Consecutive low packets required before alerting. Filters RF noise and temporary coin cell voltage dips." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <ComboBox x:Name="CmbSettingsBatteryPackets" SelectionChanged="CmbSettingsBatteryPackets_SelectionChanged"
+                                              MinWidth="230" Height="24"
+                                              FontSize="11" FontFamily="Consolas"
+                                              Foreground="{DynamicResource TextSecondaryBrush}">
+                                        <ComboBoxItem Content="2 Packets (Recommended - Balanced)" Tag="2" />
+                                        <ComboBoxItem Content="3 Packets (Strict - High Noise Immunity)" Tag="3" />
+                                        <ComboBoxItem Content="1 Packet (Immediate - First Reading)" Tag="1" />
+                                    </ComboBox>
+                                </Border>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row 5: Guardrails (Hysteresis & Startup Silence) Info & Test Button -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="🛡️ Built-in Debounce Guardrails" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BleTextBrush}" />
+                                        <TextBlock Text=" • Active" FontSize="11" Foreground="{DynamicResource EmeraldLiveBrush}" />
+                                    </StackPanel>
+                                    <TextBlock Text="+5% Hysteresis Reset gate (must rise 5% above threshold to re-arm) prevents 3 AM cold-room voltage sag loops. 20-second startup silence suppresses boot storms." FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1" x:Name="BtnTestBatteryToast" Content="🔔 Send Test Toast" Click="BtnTestBatteryToast_Click" Style="{StaticResource FoxDenButton}" Padding="12,5" FontSize="10" VerticalAlignment="Center" ToolTip="Sends a test low-battery notification to verify Windows Action Center integration" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- SECTION 3: CRYPTOGRAPHIC INTEGRITY & UPDATES (EXACT INFAUX UX DESIGN) -->
+                    <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                        <StackPanel>
+                            <!-- Header Row with SHA-256 Verified Badge -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Cryptographic Integrity &amp; Updates" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+
+                                <!-- Top Right Pill Badge -->
+                                <Border Grid.Column="1" Background="#0A223B" BorderBrush="#1D4ED8" BorderThickness="1" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="🔒 " FontSize="10" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="TxtIntegrityBadge" Text="SHA-256 Verified" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource BleTextBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- Action Buttons Row -->
+                            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                <Button x:Name="BtnCheckUpdates" Content="Check for Updates" Click="OnCheckForUpdatesClick" Style="{StaticResource FoxDenButton}" Padding="14,6" Margin="0,0,10,0" />
+                                <Button x:Name="BtnAuditHash" Content="External Hash Audit" Click="OnVerifyHashClick" Style="{StaticResource FoxDenButton}" Padding="14,6" />
+                            </StackPanel>
+
+                            <!-- Local Executable Hash Box -->
+                            <Border Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,7" Margin="0,14,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <DockPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                                        <TextBlock Text="Local SHA-256: " FontSize="11" Foreground="{DynamicResource TextMutedBrush}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="TxtLocalHash" Text="..." FontSize="11" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+
+                                    <Button Grid.Column="1" x:Name="BtnCopyHash" Content="Copy Hash" Click="OnCopyHashClick" Style="{StaticResource FoxDenButton}" Padding="12,3" FontSize="10" HorizontalAlignment="Right" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Status Dot & Text -->
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0" VerticalAlignment="Center">
+                                <Ellipse x:Name="StatusDot" Width="7" Height="7" Fill="{DynamicResource EmeraldLiveBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="TxtUpdateStatus" Text="• Up to date" FontSize="11" Foreground="{DynamicResource EmeraldLiveBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Divider Line -->
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,16,0,16" />
+
+                            <!-- Automatic Update Checks Row with Toggle Switch -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Automatic Update Checks" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Silently check GitHub Releases once daily and notify when an official update is available." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <CheckBox Grid.Column="1" x:Name="ToggleAutoUpdates" Click="ToggleAutoUpdates_Click" Style="{StaticResource FoxDenToggleSwitch}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- SECTION 3: ABOUT • FOXDEN SOFTWARE (EXACT INFAUX UX DESIGN) -->
+                    <TextBlock Text="About • FoxDen Software" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,12" />
+                    <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,24">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left Icon matching inFaux -->
+                                <Border Grid.Column="0" Background="Transparent" Width="42" Height="42" Margin="0,0,14,0" VerticalAlignment="Top">
+                                    <Image Source="pack://application:,,,/AirFoxBT;component/assets/logo.png" Width="42" Height="42" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="AirFoxBT " FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="by FoxDen Software" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource BleTextBrush}" />
+                                        <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="v1.0.0" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                        </Border>
+                                        <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="License: PolyForm Noncommercial" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="Copyright © 2026 FoxDen Software • 100% native passive Bluetooth LE Gateway | ESPHome Proxy." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Text="Developed and maintained by FoxDen Software. Source-available under PolyForm Noncommercial License 1.0.0 | free to inspect, fork, and use; commercial competition and repackaging prohibited." FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <Button Grid.Column="2" Content="GitHub Repository ↗" Click="OnGitHubClick" Style="{StaticResource FoxDenButton}" Padding="14,6" FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ROW 2: INFAUX BOTTOM STATUS BAR -->
+        <Border Grid.Row="2" Background="#06090E" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,1,0,0" Padding="14,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="Passive Bluetooth LE Gateway • Home Assistant ESPHome Proxy" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="FoxDen Software • AirFoxBT" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- IN-APP MODAL OVERLAY (EXACT INFAUX SCREENSHOT 2 DESIGN) -->
+        <Grid x:Name="InAppModalOverlay" Visibility="Collapsed" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="1000">
+            <!-- Semi-Transparent Dark Backdrop -->
+            <Border Background="#B805080E" MouseDown="OnModalBackdropMouseDown" />
+
+            <!-- Centered Modal Card with Electric Cyan Border -->
+            <Border Width="490" Background="#0C1017" BorderBrush="{DynamicResource BleTextBrush}" BorderThickness="1.5" CornerRadius="10" Padding="22" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="28" Color="#0082FC" Opacity="0.3" ShadowDepth="0" />
+                </Border.Effect>
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" /> <!-- Header (Icon, Title, Close) -->
+                        <RowDefinition Height="Auto" /> <!-- Message Text -->
+                        <RowDefinition Height="Auto" /> <!-- Details Card (Collapsible) -->
+                        <RowDefinition Height="Auto" /> <!-- Action Buttons -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 0: Icon + Title + Close Button -->
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Icon Badge Box -->
+                        <Border Grid.Column="0" Width="34" Height="34" Background="#0A1D34" BorderBrush="#0082FC" BorderThickness="1" CornerRadius="6" VerticalAlignment="Center">
+                            <TextBlock x:Name="ModalIconText" Text="✓" FontSize="16" Foreground="{DynamicResource BleTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+
+                        <!-- Title -->
+                        <TextBlock Grid.Column="1" x:Name="ModalTitleText" Text="Update Check" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="12,0,0,0" VerticalAlignment="Center" />
+
+                        <!-- Close Button 'X' -->
+                        <Button Grid.Column="2" x:Name="ModalCloseButton" Click="OnModalCloseClick" Style="{StaticResource FoxDenButton}" Content="✕" Width="28" Height="28" Padding="0" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <!-- Row 1: Message Text -->
+                    <TextBlock Grid.Row="1" x:Name="ModalMessageText" Text="AirFoxBT is up to date! You are running the latest official build." FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,18,0,16" LineHeight="20" />
+
+                    <!-- Row 2: Details Card -->
+                    <Border Grid.Row="2" x:Name="ModalDetailsCard" Background="#060A10" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="14,10" Margin="0,0,0,20">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <TextBlock Text="Details" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BleTextBrush}" VerticalAlignment="Center" />
+                                <Button x:Name="ModalCopyButton" Click="OnModalCopyClick" Content="Copy" Style="{StaticResource FoxDenButton}" Padding="8,2" FontSize="10" HorizontalAlignment="Right" />
+                            </Grid>
+
+                            <TextBox Grid.Row="1" x:Name="ModalDetailsBox" IsReadOnly="True" Background="Transparent" BorderThickness="0" FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 3: Action Buttons -->
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="ModalSecondaryButton" Click="OnModalSecondaryClick" Content="Later" Style="{StaticResource FoxDenButton}" Padding="16,7" Margin="0,0,10,0" Visibility="Collapsed" />
+                        <Button x:Name="ModalPrimaryButton" Click="OnModalPrimaryClick" Content="OK" Style="{StaticResource FoxDenPrimaryButton}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
