@@ -1,9 +1,10 @@
-﻿# =============================================================
+# =============================================================
 #  🦊 AirFoxBT Installer Script
 #  https://github.com/TalviFox/AirFoxBT
 #  Modern Native Bluetooth LE Proxy & BLE Sensor Gateway
 # =============================================================
 
+& {
 [CmdletBinding(DefaultParameterSetName = "Default")]
 param(
     [Parameter(Position = 0)]
@@ -371,3 +372,4 @@ while ($counter -lt 30) {
     $counter++
 }
 exit 0
+} @args

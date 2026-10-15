@@ -33,6 +33,14 @@ Install AirFoxBT directly using the automated PowerShell installer:
 irm https://raw.githubusercontent.com/TalviFox/AirFoxBT/main/install.ps1 | iex
 ```
 
+### Uninstallation
+
+Uninstall AirFoxBT cleanly via PowerShell or through Windows Settings (Installed Apps):
+
+```powershell
+irm https://raw.githubusercontent.com/TalviFox/AirFoxBT/main/uninstall.ps1 | iex
+```
+
 ### Running the App
 
 Download `AirFoxBT.exe` from the latest release or run the staged executable:

@@ -1,15 +1,9 @@
-﻿# =============================================================
+# =============================================================
 #  🦊 AirFoxBT Uninstaller Script
 #  https://github.com/TalviFox/AirFoxBT
 #  Cleanly removes AirFoxBT background tasks, shortcuts, registry entries, and program files.
 # =============================================================
 
-[CmdletBinding()]
-param(
-    [switch]$Force,
-    [switch]$Silent,
-    [switch]$PurgeData
-)
 
 # Console environment normalization (ensures 24-bit TrueColor)
 try {
