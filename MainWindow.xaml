@@ -45,7 +45,7 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="AirFoxBT" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
                         <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="v1.0.0" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                            <TextBlock Text="v1.0.1" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
                         </Border>
                     </StackPanel>
 
@@ -254,7 +254,7 @@
                                                 <!-- Ping-Pong Marquee for Long Titles -->
                                                 <controls:MarqueeTextBlock Grid.Column="0"
                                                                            Text="{Binding DisplayName, Mode=OneWay}"
-                                                                           FontSize="12"
+                                                                           FontSize="13"
                                                                            FontWeight="Bold"
                                                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                                                            VerticalAlignment="Center" />
@@ -263,9 +263,10 @@
                                                 <Button Grid.Column="1" Command="{Binding BeginEditCommand}"
                                                         Style="{StaticResource FoxDenIconButton}"
                                                         Margin="6,0,0,0"
+                                                        Padding="4"
                                                         VerticalAlignment="Center"
                                                         ToolTip="Rename Sensor &amp; Configure Model">
-                                                    <Viewbox Width="12" Height="12">
+                                                    <Viewbox Width="14" Height="14">
                                                         <Canvas Width="16" Height="16">
                                                             <Path Data="M 12.146,0.854 A 0.5,0.5 0 0,1 12.854,0.854 L 15.146,3.146 A 0.5,0.5 0 0,1 15.146,3.854 L 5.646,13.354 A 0.5,0.5 0 0,1 5.478,13.464 L 1.478,14.964 A 0.5,0.5 0 0,1 0.86,14.346 L 2.36,10.346 A 0.5,0.5 0 0,1 2.47,10.178 L 11.97,0.678 A 0.5,0.5 0 0,1 12.146,0.854 Z M 11.207,2.5 L 3.5,10.207 L 3.5,11 L 4.293,11 L 12,3.293 L 11.207,2.5 Z"
                                                                   Fill="{DynamicResource TextSecondaryBrush}" />
@@ -277,9 +278,10 @@
                                                 <Button Grid.Column="2" Command="{Binding DeleteSensorCommand}"
                                                         Style="{StaticResource FoxDenIconButton}"
                                                         Margin="4,0,0,0"
+                                                        Padding="4"
                                                         VerticalAlignment="Center"
                                                         ToolTip="Delete Sensor">
-                                                    <Viewbox Width="11" Height="11">
+                                                    <Viewbox Width="13" Height="13">
                                                         <Canvas Width="16" Height="16">
                                                             <Path Data="M 2,4 L 14,4 M 6,4 L 6,2 A 1,1 0 0,1 7,1 L 9,1 A 1,1 0 0,1 10,2 L 10,4 M 3.5,4 L 4.2,14 A 1.5,1.5 0 0,0 5.7,15.5 L 10.3,15.5 A 1.5,1.5 0 0,0 11.8,14 L 12.5,4"
                                                                   Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
@@ -288,35 +290,56 @@
                                                 </Button>
                                             </Grid>
 
-                                            <!-- Middle: Submodel / Display Badge (E-INK / LCD / PUCK) -->
-                                            <Border Grid.Column="1" Margin="0,0,6,0" Padding="5,2" CornerRadius="3" VerticalAlignment="Center"
-                                                    Background="{Binding DisplayTypeBackgroundBrush}"
-                                                    BorderBrush="{Binding DisplayTypeBorderBrush}"
-                                                    BorderThickness="1"
-                                                    ToolTip="{Binding DisplayTypeTooltip}">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding HasDisplayTypeBadge}" Value="True">
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="{Binding DisplayTypeBadgeText}"
-                                                           FontSize="9" FontWeight="Bold"
-                                                           Foreground="{Binding DisplayTypeForegroundBrush}"
-                                                           VerticalAlignment="Center" />
-                                            </Border>
+                                            <!-- Middle: Submodel / Display Badge + Unnamed Badge -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Unnamed New Sensor Badge -->
+                                                <Border Margin="0,0,6,0" Padding="5,2" CornerRadius="3" VerticalAlignment="Center"
+                                                        Background="#241B08" BorderBrush="#B45309" BorderThickness="1"
+                                                        ToolTip="New sensor - Click the pencil icon to rename">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsUnnamed}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="NEW" FontSize="9" FontWeight="Bold" Foreground="#F59E0B" VerticalAlignment="Center" />
+                                                </Border>
 
-                                            <!-- Middle/Right: Last 6 of MAC with Click to Copy & Tooltip -->
+                                                <!-- Submodel / Display Badge (E-INK / LCD / PUCK) -->
+                                                <Border Margin="0,0,6,0" Padding="5,2" CornerRadius="3" VerticalAlignment="Center"
+                                                        Background="{Binding DisplayTypeBackgroundBrush}"
+                                                        BorderBrush="{Binding DisplayTypeBorderBrush}"
+                                                        BorderThickness="1"
+                                                        ToolTip="{Binding DisplayTypeTooltip}">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasDisplayTypeBadge}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding DisplayTypeBadgeText}"
+                                                               FontSize="9" FontWeight="Bold"
+                                                               Foreground="{Binding DisplayTypeForegroundBrush}"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Middle/Right: Last 6 of MAC with Click to Copy & Tooltip (High-Contrast Badge) -->
                                             <Button Grid.Column="2" Command="{Binding CopyMacCommand}"
-                                                    Style="{StaticResource FoxDenIconButton}"
-                                                    Padding="4,2" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                    Style="{StaticResource FoxDenBadgeButton}"
+                                                    Background="#0B1A30" BorderBrush="#1C355E" BorderThickness="1"
+                                                    Padding="6,2" Margin="0,0,8,0" VerticalAlignment="Center"
                                                     ToolTip="{Binding MacTooltipText}">
-                                                <TextBlock Text="{Binding ShortMacAddress}" FontSize="10" FontFamily="Consolas" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding ShortMacAddress}" FontSize="11.5" FontFamily="Consolas" FontWeight="Bold"
+                                                           Foreground="#38BDF8" VerticalAlignment="Center" />
                                             </Button>
 
                                             <!-- Far Right: HA Relayed / Ignored Toggle Button Badge -->
@@ -741,6 +764,24 @@
                                                 </Style>
                                             </Border.Style>
                                             <StackPanel>
+                                                <!-- Hardware MAC Identity Header with Copy -->
+                                                <Border Background="#070C18" BorderBrush="#142240" BorderThickness="1" CornerRadius="3" Padding="8,4" Margin="0,0,0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="HARDWARE MAC:" FontSize="10" FontWeight="Bold" FontFamily="Consolas"
+                                                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding MacAddress}" FontSize="12" FontWeight="Bold" FontFamily="Consolas"
+                                                                   Foreground="#38BDF8" VerticalAlignment="Center" />
+                                                        <Button Grid.Column="2" Command="{Binding CopyMacCommand}" Content="Copy MAC"
+                                                                Style="{StaticResource FoxDenButton}" Padding="8,2" FontSize="9" VerticalAlignment="Center"
+                                                                ToolTip="Copy full MAC address to clipboard" />
+                                                    </Grid>
+                                                </Border>
+
                                                 <!-- Top: Name Input + Save / Cancel / Delete -->
                                                 <Grid Margin="0,0,0,6">
                                                     <Grid.ColumnDefinitions>
@@ -749,10 +790,10 @@
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBox Text="{Binding EditNameText, UpdateSourceTrigger=PropertyChanged}" Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BleTextBrush}" BorderThickness="1" Padding="4,2" FontSize="11" VerticalAlignment="Center" />
-                                                    <Button Grid.Column="1" Command="{Binding SaveEditCommand}" Content="Save" Background="#0D2818" Foreground="{DynamicResource EmeraldLiveBrush}" BorderBrush="#1B4D2E" BorderThickness="1" Padding="8,2" Margin="4,0,0,0" FontSize="10" FontWeight="Bold" />
-                                                    <Button Grid.Column="2" Command="{Binding CancelEditCommand}" Content="Cancel" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource TextSecondaryBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="8,2" Margin="4,0,0,0" FontSize="10" />
-                                                    <Button Grid.Column="3" Command="{Binding DeleteSensorCommand}" Content="Delete" Background="#3B1114" Foreground="#F87171" BorderBrush="#7F1D1D" BorderThickness="1" Padding="8,2" Margin="4,0,0,0" FontSize="10" ToolTip="Delete this sensor from cache and live view" />
+                                                    <TextBox Text="{Binding EditNameText, UpdateSourceTrigger=PropertyChanged}" Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BleTextBrush}" BorderThickness="1" Padding="6,3" FontSize="12" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="1" Command="{Binding SaveEditCommand}" Content="Save" Background="#0D2818" Foreground="{DynamicResource EmeraldLiveBrush}" BorderBrush="#1B4D2E" BorderThickness="1" Padding="10,3" Margin="4,0,0,0" FontSize="11" FontWeight="Bold" />
+                                                    <Button Grid.Column="2" Command="{Binding CancelEditCommand}" Content="Cancel" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource TextSecondaryBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" Padding="8,3" Margin="4,0,0,0" FontSize="11" />
+                                                    <Button Grid.Column="3" Command="{Binding DeleteSensorCommand}" Content="Delete" Background="#3B1114" Foreground="#F87171" BorderBrush="#7F1D1D" BorderThickness="1" Padding="8,3" Margin="4,0,0,0" FontSize="11" ToolTip="Delete this sensor from cache and live view" />
                                                 </Grid>
                                                 <!-- Middle: Group / Room Input -->
                                                 <Grid Margin="0,0,0,6">
@@ -779,6 +820,16 @@
                                                             Style="{StaticResource FoxDenButton}" Padding="6,2" Margin="0,0,4,0" FontSize="9" Foreground="#94A3B8" ToolTip="Force Screenless Sensor Puck" />
                                                     <TextBlock Text="{Binding EditDisplayType}" FontSize="9" FontFamily="Consolas" Foreground="{DynamicResource BleTextBrush}" Margin="6,0,0,0" VerticalAlignment="Center" />
                                                 </StackPanel>
+
+                                                <!-- Smart Keepalive Relay Toggle with Tooltip -->
+                                                <Grid Margin="0,8,0,2">
+                                                    <CheckBox IsChecked="{Binding EnableKeepalive, Mode=TwoWay}"
+                                                              Content="Smart Keepalive Relay (Bridge sleeping states to HA)"
+                                                              Foreground="{DynamicResource TextSecondaryBrush}"
+                                                              FontSize="10"
+                                                              VerticalAlignment="Center"
+                                                              ToolTip="When enabled, AirFoxBT periodically re-broadcasts this sensor's last verified reading to Home Assistant every 8 minutes if it goes to sleep in static conditions, preventing 'unavailable' gaps in history charts. Disables automatically when battery drops below 20%." />
+                                                </Grid>
                                             </StackPanel>
                                         </Border>
                                     </Grid>
@@ -946,7 +997,7 @@
 
 
                             <!-- Row: Start with Windows -->
-                            <Grid>
+                            <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -956,6 +1007,21 @@
                                     <TextBlock Text="Automatically launch AirFoxBT in the system tray when logging into Windows." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <CheckBox Grid.Column="1" x:Name="ToggleStartWithWindows" Click="ToggleStartWithWindows_Click" Style="{StaticResource FoxDenToggleSwitch}" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource CardBorderBrush}" Margin="0,4,0,12" />
+
+                            <!-- Row: Smart Keepalive Buffer (Sleep Dropout Prevention) -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Text="Smart Keepalive Buffer (Sleep Dropout Prevention)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Periodically re-broadcasts cached packets for sleeping sensors (e.g. Shelly BLU in quiet closets) every 8 minutes to prevent Home Assistant from marking them unavailable. Auto-disables if battery drops below 20%." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <CheckBox Grid.Column="1" x:Name="ToggleSmartKeepaliveBuffer" Click="ToggleSmartKeepaliveBuffer_Click" Style="{StaticResource FoxDenToggleSwitch}" VerticalAlignment="Center" />
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -1231,7 +1297,7 @@
                                         <TextBlock Text="AirFoxBT " FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         <TextBlock Text="by FoxDen Software" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource BleTextBrush}" />
                                         <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="v1.0.0" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                            <TextBlock Text="v1.0.1" FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                         </Border>
                                         <Border Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
                                             <TextBlock Text="License: PolyForm Noncommercial" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />

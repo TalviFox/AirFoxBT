@@ -24,15 +24,59 @@ public partial class App : Application
 
     private static bool _hasAlertedCrash = false;
 
+    private static System.Threading.Mutex? _singleInstanceMutex;
+    private static System.Threading.EventWaitHandle? _showWindowEvent;
+    private static System.Threading.RegisteredWaitHandle? _registeredWait;
+    private const string MutexName = "Local\\FoxDen_AirFoxBT_SingleInstance_Mutex";
+    private const string EventName = "Local\\FoxDen_AirFoxBT_ShowWindowEvent";
+
     protected override void OnStartup(StartupEventArgs e)
     {
         // Try attaching to the parent console (if launched from PowerShell or cmd)
         AttachConsole(ATTACH_PARENT_PROCESS);
 
+        // Single-instance check: Prevent duplicate instances from launching
+        bool createdNew = false;
+        try
+        {
+            _singleInstanceMutex = new System.Threading.Mutex(true, MutexName, out createdNew);
+        }
+        catch (System.Threading.AbandonedMutexException)
+        {
+            createdNew = true;
+        }
+
+        if (!createdNew)
+        {
+            // Another instance is already running. Signal it to restore and bring its window to the foreground.
+            try
+            {
+                using var showEvent = System.Threading.EventWaitHandle.OpenExisting(EventName);
+                showEvent.Set();
+            }
+            catch { }
+
+            Shutdown(0);
+            return;
+        }
+
+        try
+        {
+            _showWindowEvent = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, EventName);
+            _registeredWait = System.Threading.ThreadPool.RegisterWaitForSingleObject(_showWindowEvent, (state, timedOut) =>
+            {
+                Current?.Dispatcher.InvokeAsync(() =>
+                {
+                    ShowMainWindow();
+                });
+            }, null, -1, false);
+        }
+        catch { }
+
         DispatcherUnhandledException += (s, args) =>
         {
             var msg = $"Unhandled UI Exception:\n\n{args.Exception}";
-            System.IO.File.AppendAllText("crash.log", $"[{DateTime.UtcNow:O}] {msg}\n\n");
+            Services.LoggingService.Instance.WriteCrashLog("Unhandled UI Exception", args.Exception);
             if (!_hasAlertedCrash)
             {
                 _hasAlertedCrash = true;
@@ -43,8 +87,9 @@ public partial class App : Application
 
         AppDomain.CurrentDomain.UnhandledException += (s, args) =>
         {
+            var ex = args.ExceptionObject as Exception;
             var msg = $"Fatal Domain Exception:\n\n{args.ExceptionObject}";
-            System.IO.File.AppendAllText("crash.log", $"[{DateTime.UtcNow:O}] {msg}\n\n");
+            Services.LoggingService.Instance.WriteCrashLog("Fatal Domain Exception", ex);
             System.Windows.MessageBox.Show(msg, "AirFoxBT Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
         };
 
@@ -150,14 +195,22 @@ public partial class App : Application
             MainWindow = new MainWindow();
         }
 
+        if (MainWindow.WindowState == WindowState.Minimized)
+        {
+            MainWindow.WindowState = WindowState.Normal;
+        }
+
         MainWindow.Show();
-        MainWindow.WindowState = WindowState.Normal;
         MainWindow.Activate();
+        MainWindow.Topmost = true;
+        MainWindow.Topmost = false;
         MainWindow.Focus();
     }
 
     public void ShutdownApp()
     {
+        CleanupSingleInstance();
+
         if (TrayIcon != null)
         {
             TrayIcon.Visible = false;
@@ -169,6 +222,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        CleanupSingleInstance();
+
         if (TrayIcon != null)
         {
             TrayIcon.Visible = false;
@@ -176,6 +231,25 @@ public partial class App : Application
         }
 
         base.OnExit(e);
+    }
+
+    private static void CleanupSingleInstance()
+    {
+        try
+        {
+            _registeredWait?.Unregister(null);
+            _registeredWait = null;
+            _showWindowEvent?.Dispose();
+            _showWindowEvent = null;
+
+            if (_singleInstanceMutex != null)
+            {
+                try { _singleInstanceMutex.ReleaseMutex(); } catch { }
+                _singleInstanceMutex.Dispose();
+                _singleInstanceMutex = null;
+            }
+        }
+        catch { }
     }
 
     private static Icon CreateFoxDenIcon()

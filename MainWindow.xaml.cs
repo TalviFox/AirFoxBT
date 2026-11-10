@@ -119,6 +119,25 @@ public partial class MainWindow : Window
         _sensorsView.Filter = FilterSensorPredicate;
         SensorCardsList.ItemsSource = _sensorsView;
 
+        // Native ESPHome Bluetooth Proxy (TCP port 6053) for zero-config Home Assistant integration
+        _esphomeServer = new EsphomeProxyServer(6053);
+        var (initialSlug, initialFriendly) = DeviceNaming.ResolveNames(_settings.DeviceName);
+        _esphomeServer.NodeName = initialSlug;
+        _esphomeServer.FriendlyName = initialFriendly;
+
+        var initialPreset = ThrottleSettings.ParsePreset(_settings.ThrottleMode);
+        _esphomeServer.Throttle = ThrottleSettings.FromPreset(initialPreset);
+        _esphomeServer.EnableKeepaliveBuffer = _settings.EnableSmartKeepaliveBuffer;
+        _esphomeServer.KeepaliveIntervalMinutes = _settings.KeepaliveBufferIntervalMinutes > 0 ? _settings.KeepaliveBufferIntervalMinutes : 8;
+        _esphomeServer.KeepaliveStaleTimeoutMinutes = _settings.KeepaliveStaleTimeoutMinutes > 0 ? _settings.KeepaliveStaleTimeoutMinutes : 40;
+
+        _esphomeServer.OnLog += msg => AppendLog($"[{DateTime.Now:HH:mm:ss}] {msg}");
+        _esphomeServer.OnClientCountChanged += count => Dispatcher.InvokeAsync(() =>
+        {
+            TxtEsphomeStatus.Text = count > 0 ? $":6053 ({count} HA)" : ":6053";
+        });
+        _esphomeServer.Start();
+
         // Load pre-existing cached sensors from %AppData% so the grid is populated immediately on launch
         LoadCachedSensors();
         UpdateGroupFilterChips();
@@ -128,22 +147,6 @@ public partial class MainWindow : Window
         _engine.OnReadingReceived += OnReadingReceived;
         _engine.OnStatusChanged += OnStatusChanged;
         _engine.OnError += OnError;
-
-        // Native ESPHome Bluetooth Proxy (TCP port 6053) for zero-config Home Assistant integration
-        _esphomeServer = new EsphomeProxyServer(6053);
-        var (initialSlug, initialFriendly) = DeviceNaming.ResolveNames(_settings.DeviceName);
-        _esphomeServer.NodeName = initialSlug;
-        _esphomeServer.FriendlyName = initialFriendly;
-
-        var initialPreset = ThrottleSettings.ParsePreset(_settings.ThrottleMode);
-        _esphomeServer.Throttle = ThrottleSettings.FromPreset(initialPreset);
-
-        _esphomeServer.OnLog += msg => AppendLog($"[{DateTime.Now:HH:mm:ss}] {msg}");
-        _esphomeServer.OnClientCountChanged += count => Dispatcher.InvokeAsync(() =>
-        {
-            TxtEsphomeStatus.Text = count > 0 ? $":6053 ({count} HA)" : ":6053";
-        });
-        _esphomeServer.Start();
 
         // Forward raw BLE advertisement packets directly to Home Assistant
         _engine.OnRawAdvertisementReceived += (mac, rssi, type, data) =>
@@ -334,8 +337,9 @@ public partial class MainWindow : Window
 
             if (vm.IsIgnored)
             {
-                _esphomeServer.SetMacIgnored(vm.MacAddress, true);
+                _esphomeServer?.SetMacIgnored(vm.MacAddress, true);
             }
+            _esphomeServer?.SetDeviceKeepalive(vm.MacAddress, vm.EnableKeepalive);
         }
 
         TxtSensorsCount.Text = $"{_sensors.Count} Sensor{(_sensors.Count == 1 ? "" : "s")}";
@@ -349,7 +353,8 @@ public partial class MainWindow : Window
             vm.IsSyncEnabled = true;
         }
 
-        _esphomeServer.SetMacIgnored(vm.MacAddress, vm.IsIgnored);
+        _esphomeServer?.SetMacIgnored(vm.MacAddress, vm.IsIgnored);
+        _esphomeServer?.SetDeviceKeepalive(vm.MacAddress, vm.EnableKeepalive);
 
         SaveAllSensors();
 
@@ -467,6 +472,8 @@ public partial class MainWindow : Window
                         if (!string.IsNullOrWhiteSpace(cfg.DisplayType)) existing.DisplayType = cfg.DisplayType;
                         existing.IsIgnored = cfg.IsIgnored;
                         existing.IsSyncEnabled = cfg.IsSyncEnabled;
+                        existing.EnableKeepalive = cfg.EnableKeepalive;
+                        _esphomeServer.SetDeviceKeepalive(cfg.MacAddress, cfg.EnableKeepalive);
                         updatedCount++;
                     }
                     else
@@ -476,6 +483,7 @@ public partial class MainWindow : Window
                         vm.OnDeleteRequested = ConfirmAndDeleteSensor;
                         _sensorMap[vm.MacAddress] = vm;
                         _sensors.Add(vm);
+                        _esphomeServer.SetDeviceKeepalive(vm.MacAddress, vm.EnableKeepalive);
                         addedCount++;
                     }
                 }
@@ -562,6 +570,7 @@ public partial class MainWindow : Window
         TxtLocalHash.Text = UpdateService.Instance.GetLocalExecutableHash();
         ToggleAutoUpdates.IsChecked = _settings.CheckForUpdates;
         ToggleStartWithWindows.IsChecked = StartupService.IsStartupEnabled();
+        ToggleSmartKeepaliveBuffer.IsChecked = _settings.EnableSmartKeepaliveBuffer;
         RefreshFirewallStatus();
         UpdateBatterySettingsUi();
         _logScrollViewer = FindScrollViewer(LstLogs);
@@ -1225,6 +1234,18 @@ public partial class MainWindow : Window
         LstLogs.Items.Add($"[{DateTime.Now:HH:mm:ss}] [SETTINGS] Start with Windows: {(StartupService.IsStartupEnabled() ? "Enabled" : "Disabled")}");
     }
 
+    private void ToggleSmartKeepaliveBuffer_Click(object sender, RoutedEventArgs e)
+    {
+        bool enable = ToggleSmartKeepaliveBuffer.IsChecked == true;
+        _settings.EnableSmartKeepaliveBuffer = enable;
+        if (_esphomeServer != null)
+        {
+            _esphomeServer.EnableKeepaliveBuffer = enable;
+        }
+        _storageService.SaveSettings(_settings);
+        AppendLog($"[{DateTime.Now:HH:mm:ss}] [SETTINGS] Smart keepalive buffer for sleeping sensors: {(enable ? "Enabled" : "Disabled")}");
+    }
+
 
 
     #region Network Selection & Dynamic Interface Reload
@@ -1652,6 +1673,10 @@ public partial class MainWindow : Window
     private void OnReadingReceived(BleReading reading)
     {
         Interlocked.Increment(ref _totalPackets);
+        if (reading.BluetoothAddress != 0)
+        {
+            _esphomeServer.UpdateSensorKeepaliveMetadata(reading.BluetoothAddress, reading.IsEncrypted, reading.BatteryPercent);
+        }
         _apiService.BroadcastReading(reading);
 
         string metricSummary;
@@ -1740,6 +1765,21 @@ public partial class MainWindow : Window
 
             if (!_sensorMap.TryGetValue(reading.MacAddress, out var vm))
             {
+                // Guard against phantom cards: Only spawn a brand new UI sensor card if the frame contains valid decoded metrics or is an encrypted beacon
+                bool hasDecodedMetrics = reading.TemperatureC.HasValue ||
+                                         reading.HumidityPercent.HasValue ||
+                                         reading.IsOpen.HasValue ||
+                                         reading.IsMotion.HasValue ||
+                                         !string.IsNullOrEmpty(reading.ButtonEventName) ||
+                                         reading.IsEncrypted;
+
+                if (!hasDecodedMetrics)
+                {
+                    // Frame is logged in ingestion stream and forwarded to HA (:6053), but does not pollute the GUI with an empty card
+                    AppendLog($"[{DateTime.Now:HH:mm:ss}] 📡 {reading.MacAddress} [{reading.Protocol}] -> {metricSummary}{battPart} • RSSI: {reading.Rssi} dBm");
+                    return;
+                }
+
                 vm = new SensorCardViewModel();
                 vm.UpdateFromReading(reading);
 
@@ -1831,6 +1871,9 @@ public partial class MainWindow : Window
 
     public void AppendLog(string line)
     {
+        // Persist all engine and telemetry log entries to disk
+        LoggingService.Instance.LogLine(line);
+
         if (!Dispatcher.CheckAccess())
         {
             Dispatcher.InvokeAsync(() => AppendLog(line));

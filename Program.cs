@@ -93,7 +93,7 @@ public static class Program
         {
             try
             {
-                System.IO.File.AppendAllText("crash.log", $"[{DateTime.UtcNow:O}] Startup Failure:\n{ex}\n\n");
+                LoggingService.Instance.WriteCrashLog("Startup Failure", ex);
                 System.Windows.MessageBox.Show($"AirFoxBT could not start:\n\n{ex.Message}\n\nCheck crash.log for details.", "AirFoxBT Startup Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
             catch { }
