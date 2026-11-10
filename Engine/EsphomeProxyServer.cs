@@ -34,6 +34,32 @@ public class EsphomeProxyServer : IDisposable
     private long _totalDroppedAdv = 0;
     private readonly ConcurrentDictionary<string, bool> _ignoredMacs = new(StringComparer.OrdinalIgnoreCase);
 
+    public class KeepaliveFrameInfo
+    {
+        public short Rssi { get; set; }
+        public uint AddressType { get; set; }
+        public byte[] Data { get; set; } = Array.Empty<byte>();
+        public long LastRealSeenMs { get; set; }
+        public long LastSyntheticSentMs { get; set; }
+        public bool IsEncrypted { get; set; }
+        public int? BatteryPercent { get; set; }
+    }
+
+    private readonly ConcurrentDictionary<ulong, KeepaliveFrameInfo> _keepaliveFrames = new();
+    private System.Threading.Timer? _keepaliveTimer;
+    public bool EnableKeepaliveBuffer { get; set; } = true;
+    public int KeepaliveIntervalMinutes { get; set; } = 8;
+    public int KeepaliveStaleTimeoutMinutes { get; set; } = 40;
+
+    public void UpdateSensorKeepaliveMetadata(ulong mac, bool isEncrypted, int? batteryPercent)
+    {
+        if (_keepaliveFrames.TryGetValue(mac, out var info))
+        {
+            info.IsEncrypted = isEncrypted;
+            info.BatteryPercent = batteryPercent;
+        }
+    }
+
     public void SetMacIgnored(string formattedMac, bool isIgnored)
     {
         if (string.IsNullOrWhiteSpace(formattedMac)) return;
@@ -48,6 +74,24 @@ public class EsphomeProxyServer : IDisposable
     }
 
     public bool IsMacIgnored(string formattedMac) => !string.IsNullOrWhiteSpace(formattedMac) && _ignoredMacs.ContainsKey(formattedMac);
+
+    private readonly ConcurrentDictionary<string, bool> _disabledKeepaliveMacs = new(StringComparer.OrdinalIgnoreCase);
+
+    public void SetDeviceKeepalive(string formattedMac, bool enabled)
+    {
+        if (string.IsNullOrWhiteSpace(formattedMac)) return;
+        if (enabled)
+        {
+            _disabledKeepaliveMacs.TryRemove(formattedMac, out _);
+        }
+        else
+        {
+            _disabledKeepaliveMacs[formattedMac] = true;
+        }
+    }
+
+    public bool IsDeviceKeepaliveEnabled(string formattedMac) =>
+        string.IsNullOrWhiteSpace(formattedMac) || !_disabledKeepaliveMacs.ContainsKey(formattedMac);
 
     public event Action<string>? OnLog;
     public event Action<int>? OnClientCountChanged;
@@ -85,6 +129,7 @@ public class EsphomeProxyServer : IDisposable
     {
         Port = port;
         _listener = new TcpListener(IPAddress.Any, Port);
+        _keepaliveTimer = new System.Threading.Timer(ProcessKeepaliveBuffer, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
     public void Start()
@@ -163,6 +208,31 @@ public class EsphomeProxyServer : IDisposable
 
         Interlocked.Increment(ref _totalForwardedAdv);
 
+        // Update keepalive cache with latest real radio frame
+        long currentTick = Environment.TickCount64;
+        _keepaliveFrames.AddOrUpdate(mac,
+            _ => new KeepaliveFrameInfo
+            {
+                Rssi = rssi,
+                AddressType = addressType,
+                Data = data,
+                LastRealSeenMs = currentTick,
+                LastSyntheticSentMs = currentTick
+            },
+            (_, existing) =>
+            {
+                existing.Rssi = rssi;
+                existing.AddressType = addressType;
+                existing.Data = data;
+                existing.LastRealSeenMs = currentTick;
+                return existing;
+            });
+
+        SendRawFrameToSubscribers(mac, rssi, addressType, data);
+    }
+
+    private void SendRawFrameToSubscribers(ulong mac, short rssi, uint addressType, byte[] data)
+    {
         // Submessage: BluetoothLERawAdvertisement
         // 1: mac (uint64)
         // 2: rssi (sint32 zigzag)
@@ -187,6 +257,40 @@ public class EsphomeProxyServer : IDisposable
             if (session.IsSubscribedToBle)
             {
                 session.Send(frame);
+            }
+        }
+    }
+
+    private void ProcessKeepaliveBuffer(object? state)
+    {
+        if (!EnableKeepaliveBuffer || !_isRunning || _clients.IsEmpty) return;
+
+        long nowMs = Environment.TickCount64;
+        long intervalMs = KeepaliveIntervalMinutes * 60 * 1000L;
+        long staleTimeoutMs = KeepaliveStaleTimeoutMinutes * 60 * 1000L;
+
+        foreach (var kvp in _keepaliveFrames)
+        {
+            ulong mac = kvp.Key;
+            var info = kvp.Value;
+
+            string formattedMac = BleWatcherEngine.FormatMacAddress(mac);
+            if (_ignoredMacs.ContainsKey(formattedMac)) continue;
+            if (_disabledKeepaliveMacs.ContainsKey(formattedMac)) continue;
+            if (info.IsEncrypted) continue;
+            if (info.BatteryPercent.HasValue && info.BatteryPercent.Value < 20) continue;
+
+            long timeSinceReal = nowMs - info.LastRealSeenMs;
+            long timeSinceSynthetic = nowMs - info.LastSyntheticSentMs;
+
+            if (timeSinceReal >= intervalMs && timeSinceReal < staleTimeoutMs)
+            {
+                if (timeSinceSynthetic >= intervalMs)
+                {
+                    info.LastSyntheticSentMs = nowMs;
+                    SendRawFrameToSubscribers(mac, info.Rssi, info.AddressType, info.Data);
+                    OnLog?.Invoke($"[Keepalive] 💓 Synthesized keepalive frame for {formattedMac} (sleeping {timeSinceReal / 60000}m)");
+                }
             }
         }
     }
@@ -252,6 +356,7 @@ public class EsphomeProxyServer : IDisposable
     {
         _isRunning = false;
         _cts.Cancel();
+        _keepaliveTimer?.Dispose();
         try { _listener.Stop(); } catch { }
 
         foreach (var kvp in _clients)

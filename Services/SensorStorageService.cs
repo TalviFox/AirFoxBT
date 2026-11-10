@@ -30,6 +30,7 @@ public class StoredSensorConfig
     public string? DeviceCategory { get; set; }
     public bool IsIgnored { get; set; } = false;
     public string? GroupName { get; set; }
+    public bool EnableKeepalive { get; set; } = true;
 }
 
 public class AppSettings
@@ -49,6 +50,9 @@ public class AppSettings
     public int BatteryThresholdPercent { get; set; } = 15;
     public int BatteryCooldownHours { get; set; } = 24;
     public int BatteryDebouncePackets { get; set; } = 2;
+    public bool EnableSmartKeepaliveBuffer { get; set; } = true;
+    public int KeepaliveBufferIntervalMinutes { get; set; } = 8;
+    public int KeepaliveStaleTimeoutMinutes { get; set; } = 40;
 }
 
 public class SensorStorageService

@@ -74,6 +74,19 @@ public class SensorCardViewModel : INotifyPropertyChanged
         }
     }
 
+    private bool _enableKeepalive = true;
+    public bool EnableKeepalive
+    {
+        get => _enableKeepalive;
+        set
+        {
+            if (SetField(ref _enableKeepalive, value))
+            {
+                OnConfigChanged?.Invoke(this);
+            }
+        }
+    }
+
     public string? HardwareModel
     {
         get => _hardwareModel;
@@ -597,6 +610,7 @@ public class SensorCardViewModel : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(DisplayName));
                 OnPropertyChanged(nameof(HasCustomName));
+                OnPropertyChanged(nameof(IsUnnamed));
             }
         }
     }
@@ -611,6 +625,7 @@ public class SensorCardViewModel : INotifyPropertyChanged
         get => !string.IsNullOrWhiteSpace(_friendlyName);
         set { }
     }
+    public bool IsUnnamed => string.IsNullOrWhiteSpace(_friendlyName);
 
     public bool IsEditing
     {
@@ -1074,7 +1089,8 @@ public class SensorCardViewModel : INotifyPropertyChanged
             LastIsMotion = IsMotion,
             LastButtonEvent = ButtonEventName,
             IsEncrypted = IsEncrypted,
-            DeviceCategory = DeviceCategory
+            DeviceCategory = DeviceCategory,
+            EnableKeepalive = EnableKeepalive
         };
     }
 
@@ -1165,6 +1181,7 @@ public class SensorCardViewModel : INotifyPropertyChanged
             DisplayType = resolvedDisplayType,
             IsIgnored = config.IsIgnored,
             GroupName = config.GroupName,
+            EnableKeepalive = config.EnableKeepalive,
             IsAwaitingBeacon = true
         };
         return vm;

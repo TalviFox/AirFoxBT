@@ -48,17 +48,29 @@ public class LocalApiService : IDisposable
             _cts = new CancellationTokenSource();
             _listener = new HttpListener();
 
-            bool wildcardSucceeded = false;
+            bool isAdmin = false;
             try
             {
-                _listener.Prefixes.Add($"http://*:{Port}/");
-                _listener.Start();
-                wildcardSucceeded = true;
+                using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+                var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                isAdmin = principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
             }
-            catch
+            catch { }
+
+            bool wildcardSucceeded = false;
+            if (isAdmin)
             {
-                _listener.Close();
-                _listener = new HttpListener();
+                try
+                {
+                    _listener.Prefixes.Add($"http://*:{Port}/");
+                    _listener.Start();
+                    wildcardSucceeded = true;
+                }
+                catch
+                {
+                    _listener.Close();
+                    _listener = new HttpListener();
+                }
             }
 
             if (!wildcardSucceeded)

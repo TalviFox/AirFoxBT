@@ -1,71 +1,66 @@
-# AirFoxBT v1.0.0 Release Notes
+﻿# AirFoxBT v1.0.1 Release Notes
 
-**FoxDen Software**  
-*Real beacons. Zero pairing. Whisper-quiet Bluetooth bridge for Windows.*
+FoxDen Software  
+Real beacons. Zero pairing. Whisper-quiet Bluetooth bridge for Windows.
 
 ---
 
 ## Overview
-AirFoxBT is a lightweight, zero-privilege Windows background service and system tray gateway that turns any Windows 10 or 11 PC into an ESPHome Bluetooth Proxy (port 6053) for Home Assistant. It passively sniffs 2.4 GHz airwaves with your PC's desktop antennas and bridges decoded metrics to Home Assistant, WebSockets, and REST.
+
+AirFoxBT 1.0.1 is a stability, legibility, and continuity update for the zero-driver Windows BLE passive gateway. This release resolves graph dropout gaps in Home Assistant for sleeping thermo-hygrometers, delivers high-contrast MAC address identification across the dashboard, cleans up Windows event log warnings, and adds automated crash diagnostics.
 
 ---
 
-## Core Capabilities
+## Key Improvements in v1.0.1
 
-### 1. ESPHome Bluetooth Proxy (Port 6053)
-- Fully implements the ESPHome native API Bluetooth proxy protocol over TCP.
-- Home Assistant auto-discovery via multicast DNS (`_esphomelib._tcp.local`).
-- Forwarding of raw BLE frames for instant detection of sensors without manual pairing.
-- Proxy rate-limiting presets: Eco (15s), Balanced (5s), Realtime (1s), and Raw.
+### Smart Relay Keepalive Buffer
+- Eliminates unavailable dropouts and dashed line segments in Home Assistant history graphs for sleeping environmental sensors.
+- Monitors decoded telemetry and periodically refreshes the Home Assistant ESPHome proxy with the last valid environmental reading for sleeping sensors that have been quiet for more than 8 minutes.
+- Implements a 40-minute stale cutoff and a 20 percent battery safety guard to prevent ghost data from expired or battery-depleted hardware.
+- Fully controllable via a toggle switch under Settings with live persistence.
 
-### 2. Supported Sensor Types & Telemetry
-- **Environmental Sensors (Thermo-Hygrometers):**
-  - Shelly BLU H&T (E-Paper display `SBHT-103C` and screenless puck `SBHT-003C`).
-  - Xiaomi Mijia (LYWSD03MMC, etc.) running custom ATC / PVVX firmware (`0x181A`).
-  - Custom ESP32 telemetry beacons.
-  - Displays temperature (°F / °C), relative humidity (% RH with meter), and battery level.
-- **Contact Sensors (Door / Window):**
-  - Shelly BLU Door / Window sensors.
-  - Reports contact state (Open / Closed), tilt angle, ambient illuminance (lux), and battery.
-- **Motion Sensors:**
-  - Shelly BLU Motion PIR sensors (motion detection and lux).
-- **Remote Buttons:**
-  - Shelly BLU Button remotes (single, double, triple, and long press events).
-- **Encrypted Beacons:**
-  - Pass-through relay to Home Assistant with AES-CCM identification.
+### High-Visibility Sensor Cards & MAC Identification
+- Hardware MAC addresses are now rendered in a dedicated 11.5pt bold Consolas badge in crisp Cyan on dark navy pills.
+- Dedicated Hardware MAC section added inside the sensor edit drawer with a one-click Copy MAC button.
+- Prominent amber NEW badge displayed on unconfigured sensors to quickly identify newly discovered beacons in dense RF environments.
+- Larger click targets for edit, delete, and rename controls.
 
-### 3. Battery Alerts & Guardrails
-- Windows Action Center desktop toast notifications for low coin cell batteries.
-- Multi-stage debounce filter and cold-voltage hysteresis reset gate to suppress noise.
-- Customizable threshold levels (5%, 10%, 15%, 20%, 25%) and cooldown intervals.
+### Reliability & Diagnostic Logging
+- Piped runtime ingestion and connection logs to persistent rolling disk storage at `%AppData%\FoxDen\AirFoxBT\logs\airfoxbt.log` with 5MB auto-rotation.
+- Added comprehensive unhandled exception handlers writing structured crash traces to `%AppData%\FoxDen\AirFoxBT\logs\crash.log`.
+- Updated the local REST API initialization to verify Windows administrative privileges before binding wildcard HTTP prefixes, eliminating Windows HttpService Event 113 warnings.
 
-### 4. Sensor Data & Storage Management
-- **Export Sensor Data (.json):** Create portable JSON backups of custom names, room zones, and hardware settings.
-- **Import Sensor Data (.json):** Restore sensor configurations and friendly names with a single click.
-- **Delete All Sensors:** Clean cache reset to wipe historical sensor records and refresh discovery.
-- **Delete Single Sensor:** Delete individual devices via right-click context menu, card header, or rename drawer.
+### Phantom Card Guardrails & Decoder Filtering
+- Resolved an issue where stray 2.4 GHz packets from nearby non-sensor IoT hardware (smart plugs, switches) could spawn empty dashboard cards with dashed telemetry.
+- Hardened the MiBeacon decoder to require valid decoded telemetry objects or recognized sensor hardware models before accepting frames.
+- Added a dashboard safeguard in the UI controller that suppresses unconfigured card creation for any frames lacking telemetry data, while preserving raw packet forwarding to Home Assistant.
 
-### 5. Nocturnal Hunter User Interface
-- FoxDen Nocturnal Hunter dark theme matching inFaux and WireFox.
-- Smooth hardware-accelerated text tickers for long sensor names.
-- Rolling real-time BLE ingestion packet log with auto-scroll.
-- Group and room filter chips (Outside, Upstairs, Downstairs, PC, Doors, Other).
-- Zero external driver dependencies (pure native WinRT and TCP).
+### Single-Instance Process Enforcement & Bring-to-Front
+- Added named Windows Mutex enforcement (`Local\FoxDen_AirFoxBT_SingleInstance_Mutex`) to prevent duplicate processes from launching when clicking Start Menu or desktop shortcuts.
+- Second launch attempts automatically signal the primary instance via an event wait handle to restore from the system tray, un-minimize, and activate to the foreground before exiting cleanly with zero port collisions.
 
-```powershell
-irm https://raw.githubusercontent.com/TalviFox/AirFoxBT/main/install.ps1 | iex
-```
+### Per-Device Smart Keepalive Controls
+- Added a dedicated "Smart Keepalive Relay" toggle with descriptive tooltip directly inside each sensor card's edit drawer.
+- Allows users to selectively enable or disable keepalive repeating on a per-sensor basis while retaining the global master switch under Settings.
 
-### 🔒 Checksums & Binary Verification
+---
+
+## Checksums & Binary Verification
 
 | File | SHA-256 Checksum |
 | :--- | :--- |
-| `AirFoxBT.exe` | `c8aa6e5ab7a6a406d57e494c504e5a0ab1ae2c540957af13fa847dd7f60f0c63` |
-| `uninstall.ps1` | `4f2bf05c57aafbac4ba64841e7119126083a2aa9f25ce227fd66eeffe83f2172` |
-| `verify.ps1` | `6490e8f31b4a96152c622fb600d80e948361c93ff265620b1a98c4af54c92232` |
+| `AirFoxBT.exe` | `321e0c9a8b7026ab2f50e5a276dbb2c0ae21c22728653114dd432d9756f50f7c` |
+| `install.ps1` | `926b9e37be16e35a37d2f332036ca9ca0e43b14fc86a517eecd3569ee54dc79c` |
+| `uninstall.ps1` | `e653de36494572fa3745684cffcd928eb481d90a29c8fdaad2896de4ed0dfbe3` |
+| `verify.ps1` | `760c62d5bd2c003743a61ea684b3bd14224a4a8ad89573ead9dca6541a69c986` |
 
 Verify integrity before running (PowerShell):
 
 ```powershell
 irm https://raw.githubusercontent.com/TalviFox/AirFoxBT/main/verify.ps1 | iex
 ```
+
+
+
+
+

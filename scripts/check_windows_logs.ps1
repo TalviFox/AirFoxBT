@@ -27,14 +27,14 @@ if (Test-Path $werReports) {
 }
 
 Write-Output "--- Checking Any Debug / App Log Files ---"
-$localAppData = "$env:LOCALAPPDATA\AirFoxBT"
-if (Test-Path $localAppData) {
-    Get-ChildItem $localAppData -Recurse | Format-Table FullName, Length, LastWriteTime
+$installDir = "$env:LOCALAPPDATA\Programs\AirFoxBT"
+if (Test-Path $installDir) {
+    Get-ChildItem $installDir -Filter "*.log*" | Format-Table FullName, Length, LastWriteTime
 } else {
-    Write-Output "No $localAppData folder."
+    Write-Output "No $installDir folder."
 }
 
-$appData = "$env:APPDATA\AirFoxBT"
+$appData = "$env:APPDATA\FoxDen\AirFoxBT"
 if (Test-Path $appData) {
     Get-ChildItem $appData -Recurse | Format-Table FullName, Length, LastWriteTime
 } else {

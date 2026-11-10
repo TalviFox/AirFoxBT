@@ -125,6 +125,7 @@ public class BleWatcherEngine
                 {
                     if (BTHomeDecoder.TryDecode(payload, mac, localName, rssi, out var reading))
                     {
+                        reading.BluetoothAddress = args.BluetoothAddress;
                         OnReadingReceived?.Invoke(reading);
                         return;
                     }
@@ -133,6 +134,7 @@ public class BleWatcherEngine
                 {
                     if (AtcDecoder.TryDecode(payload, mac, localName, rssi, out var reading))
                     {
+                        reading.BluetoothAddress = args.BluetoothAddress;
                         OnReadingReceived?.Invoke(reading);
                         return;
                     }
@@ -141,6 +143,7 @@ public class BleWatcherEngine
                 {
                     if (MiBeaconDecoder.TryDecode(payload, mac, localName, rssi, out var reading))
                     {
+                        reading.BluetoothAddress = args.BluetoothAddress;
                         OnReadingReceived?.Invoke(reading);
                         return;
                     }
@@ -156,6 +159,7 @@ public class BleWatcherEngine
                 byte[] data = ReadBuffer(mfg.Data);
                 if (BTHomeDecoder.TryDecode(data, mac, localName, rssi, out var reading))
                 {
+                    reading.BluetoothAddress = args.BluetoothAddress;
                     OnReadingReceived?.Invoke(reading);
                     return;
                 }
@@ -165,6 +169,7 @@ public class BleWatcherEngine
                 byte[] data = ReadBuffer(mfg.Data);
                 if (AtcDecoder.TryDecode(data, mac, localName, rssi, out var reading))
                 {
+                    reading.BluetoothAddress = args.BluetoothAddress;
                     OnReadingReceived?.Invoke(reading);
                     return;
                 }

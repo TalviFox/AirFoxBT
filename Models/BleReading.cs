@@ -4,6 +4,7 @@ namespace AirFoxBT.Models;
 
 public class BleReading
 {
+    public ulong BluetoothAddress { get; set; }
     public string MacAddress { get; set; } = string.Empty;
     public string DeviceName { get; set; } = "Unknown";
     public string Protocol { get; set; } = string.Empty;

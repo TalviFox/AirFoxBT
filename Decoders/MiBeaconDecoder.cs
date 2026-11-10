@@ -87,18 +87,20 @@ public static class MiBeaconDecoder
             }
         }
 
+        bool isKnownProduct = KnownProducts.ContainsKey(productId);
+
         if (isEncrypted)
         {
             reading.IsEncrypted = true;
             reading.Protocol = "Xiaomi MiBeacon (Encrypted)";
             reading.DeviceCategory = "Encrypted";
-            return true;
+            return isKnownProduct; // Only register encrypted cards for known Xiaomi sensor models
         }
 
         if (!hasObject || index >= payload.Length)
         {
-            // Even without event metrics, successfully return model reading so hardware model is registered
-            return true;
+            // Only accept frames without TLV objects if the hardware model is an explicitly recognized sensor product
+            return isKnownProduct;
         }
 
         // Parse TLV Event Objects
@@ -160,6 +162,12 @@ public static class MiBeaconDecoder
             index += eventLen;
         }
 
-        return true;
+        bool hasTelemetry = reading.TemperatureC.HasValue ||
+                            reading.HumidityPercent.HasValue ||
+                            reading.BatteryPercent.HasValue ||
+                            reading.IlluminanceLux.HasValue;
+
+        // Reject unknown devices that carry zero telemetry
+        return hasTelemetry || isKnownProduct;
     }
 }
