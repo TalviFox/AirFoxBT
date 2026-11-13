@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://jkc.foxdensoftware.dev/sitemap.xml
